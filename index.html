@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Margakshat | Smart City Governance</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS (Maps) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f766e', // Teal 700
+                        secondary: '#f59e0b', // Amber 500
+                        accent: '#0d9488', // Teal 600
+                        darkbg: '#0f172a', // Slate 900
+                        darkcard: '#1e293b', // Slate 800
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+
+        body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hindi font */
+body.hindi {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+}
+
+/* Marathi font */
+body.marathi {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+}
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        /* Map Container */
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+        }
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* Loader */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #0f766e;
+            width: 24px;
+            height: 24px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-darkbg dark:text-gray-100 transition-colors duration-300 overflow-hidden">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="h-screen w-full flex flex-col">
+
+        <!-- LOGIN SCREEN -->
+        <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-teal-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 transition-all duration-500">
+            <div class="bg-white dark:bg-darkcard p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-slate-700 fade-in">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-teal-100 text-teal-600 mb-4 text-3xl">
+                        <i class="fa-solid fa-city"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Margakshat</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2" data-i18n="tagline">Smart Road Damage Reporting</p>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+                    <p class="text-sm text-gray-500 mb-2">Choose role and language</p>
+                    <!-- Role Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Login As
+                        </label>
+                        
+                        <select id="role-select"
+                        class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white">
+                        <option value="citizen">Citizen</option>
+                        <option value="admin">Admin</option>
+                        <option value="contractor">Contractor</option>
+                        </select>
+                        </div>
+                        
+                        <!-- Language Selection -->
+                        <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Language
+                        </label>
+                        
+                        <select id="login-lang"
+                        class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white">
+                        <option value="en">English</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="mr">मराठी</option>
+                        </select>
+                        </div>
+                        
+                        <!-- Email -->
+                        <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" data-i18n="email">
+                        Email
+                        </label>
+                        
+                        <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                        <i class="fa-solid fa-envelope"></i>
+                        </span>
+                        
+                        <input type="email" id="login-email"
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 dark:text-white"
+                        placeholder="user@margakshat.com" required>
+                        </div>
+                        </div>
+                        
+                        <!-- Password -->
+                        <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" data-i18n="password">
+                        Password
+                        </label>
+                        
+                        <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                        <i class="fa-solid fa-lock"></i>
+                        </span>
+                        
+                        <input type="password" id="login-pass"
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 dark:text-white"
+                        placeholder="••••••••" required>
+                        </div>
+                        </div>
+                        
+                        <button type="submit"
+                        class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                        <span data-i18n="login">Login</span>
+                        </button>
+                        </form>
+                        </div>
+                        </div>
+        <!-- MAIN DASHBOARD (Hidden initially) -->
+        <div id="dashboard" class="hidden flex h-full">
+            
+            <!-- SIDEBAR -->
+            <aside class="w-64 bg-white dark:bg-darkcard border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-300 z-20 shadow-lg">
+                <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-slate-700">
+                    <i class="fa-solid fa-city text-teal-600 text-xl mr-3"></i>
+                    <span class="text-xl font-bold text-gray-800 dark:text-white tracking-tight">Margakshat</span>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="sidebar-nav">
+                    <!-- Injected via JS -->
+                </nav>
+
+                <!-- Bottom Actions -->
+                <div class="p-4 border-t border-gray-200 dark:border-slate-700 space-y-2">
+                    <button onclick="toggleTheme()" class="w-full flex items-center px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition">
+                        <i class="fa-solid fa-moon mr-3 w-5 text-center" id="theme-icon"></i>
+                        <span data-i18n="theme">Theme</span>
+                    </button>
+                    <button onclick="logout()" class="w-full flex items-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                        <i class="fa-solid fa-right-from-bracket mr-3 w-5 text-center"></i>
+                        <span data-i18n="logout">Logout</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- CONTENT AREA -->
+            <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-gray-50 dark:bg-darkbg">
+                
+                <!-- Header -->
+                <header class="h-16 bg-white dark:bg-darkcard border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 shadow-sm z-10">
+                    <div class="flex items-center">
+                        <h2 id="page-title" class="text-xl font-semibold text-gray-800 dark:text-white">Dashboard</h2>
+                        <span id="user-role-badge" class="ml-3 px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">Role</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Language Selector -->
+                        <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block p-1.5">
+                            <option value="en">English</option>
+                            <option value="hi">हिंदी</option>
+                            <option value="mr">मराठी</option>
+                        </select>
+                        
+                        <!-- Notifications -->
+                        <button class="relative p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <i class="fa-solid fa-bell text-lg"></i>
+                            <span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-darkcard"></span>
+                        </button>
+                        
+                        <!-- Profile -->
+                        <div class="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 p-1.5 rounded-lg transition">
+                            <div class="h-8 w-8 rounded-full bg-gradient-to-r from-teal-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm" id="user-avatar">
+                                U
+                            </div>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200 hidden md:block" id="user-name">User</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Dynamic Content Container -->
+                <div id="content-area" class="flex-1 overflow-y-auto p-6 relative">
+                    <!-- Views will be injected here -->
+                </div>
+
+            </main>
+        </div>
+
+        <!-- CHATBOT WIDGET -->
+        <div id="chatbot-container" class="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+            <!-- Chat Window -->
+            <div id="chat-window" class="hidden mb-4 w-80 md:w-96 bg-white dark:bg-darkcard rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col transition-all origin-bottom-right transform scale-95 opacity-0">
+                <div class="bg-teal-600 p-4 flex justify-between items-center">
+                    <div class="flex items-center text-white">
+                        <i class="fa-solid fa-robot mr-2"></i>
+                        <span class="font-semibold" data-i18n="assistant">Marg Assistant</span>
+                    </div>
+                    <button onclick="toggleChat()" class="text-teal-100 hover:text-white"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div id="chat-messages" class="flex-1 h-80 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-slate-800">
+                    <div class="flex items-start">
+                        <div class="bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-100 rounded-lg py-2 px-3 max-w-[85%] text-sm">
+                            <span data-i18n="chat_welcome">Hello! I am Marg. How can I help you with road safety today?</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 bg-white dark:bg-darkcard border-t border-gray-200 dark:border-slate-700 flex items-center">
+                    <button onclick="startVoiceInput()" class="p-2 text-gray-500 hover:text-teal-600 transition"><i class="fa-solid fa-microphone"></i></button>
+                    <input type="text" id="chat-input" class="flex-1 mx-2 bg-gray-100 dark:bg-slate-700 border-0 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 dark:text-white" placeholder="Type a message..." onkeypress="handleChatKey(event)">
+                    <button onclick="sendChatMessage()" class="p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+                </div>
+            </div>
+            
+            <!-- Toggle Button -->
+            <button onclick="toggleChat()" class="h-14 w-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-110">
+                <i class="fa-solid fa-comments"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // --- DATA & STATE MANAGEMENT ---
+        const state = {
+            currentUser: null,
+            theme: localStorage.getItem('theme') || 'light',
+            language: localStorage.getItem('lang') || 'en',
+            currentView: 'dashboard',
+            complaints: [
+                { id: 'CMP-001', type: 'Pothole', location: 'Hotgi Road', severity: 'High', status: 'Verified', date: '2023-10-24', lat: 17.6605, lng: 75.9064, reporter: 'citizen@margakshat.com', image: 'https://placehold.co/600x400/333/fff?text=Pothole+Image' },
+                { id: 'CMP-002', type: 'Crack', location: 'Siddheshwar Temple Rd', severity: 'Medium', status: 'In Progress', date: '2023-10-25', lat: 17.6746, lng: 75.8976, reporter: 'citizen@margakshat.com', image: 'https://placehold.co/600x400/666/fff?text=Crack+Image' },
+                { id: 'CMP-003', type: 'Drainage', location: 'Murarji Peth', severity: 'Low', status: 'Resolved', date: '2023-10-20', lat: 17.6712, lng: 75.9030, reporter: 'citizen@margakshat.com', image: 'https://placehold.co/600x400/999/fff?text=Drainage' }
+            ],
+            posts: [
+                { id: 1, author: 'Rahul Patil', type: 'report', content: 'Large pothole near the railway station causing traffic jams.', upvotes: 12, comments: 3, time: '2h ago' },
+                { id: 2, author: 'SMC_Official', type: 'discussion', content: 'Road repair work will commence on Main Road from Nov 1st. Expect diversions.', upvotes: 45, comments: 8, time: '5h ago' }
+            ]
+        };
+
+        const users = {
+            'citizen@margakshat.com': { role: 'citizen', name: 'Amit Deshmukh', pass: 'citizen123' },
+            'admin@margakshat.com': { role: 'admin', name: 'SMC Official', pass: 'admin123' },
+            'contractor@margakshat.com': { role: 'contractor', name: 'BuildRight Corp', pass: 'contractor123' }
+        };
+
+        const i18n = {
+            en: {
+                tagline: "Smart Road Damage Reporting",
+                login: "Login",
+                email: "Email",
+                password: "Password",
+                demo_accounts: "Demo Accounts",
+                theme: "Theme",
+                logout: "Logout",
+                assistant: "Marg Assistant",
+                chat_welcome: "Hello! I am Marg. How can I help you with road safety today?",
+                // Sidebar
+                dashboard: "Dashboard",
+                report_damage: "Report Damage",
+                track_complaints: "Track Complaints",
+                live_map: "Live Map & Hotspots",
+                discussion: "Discussion Portal",
+                profile: "Profile",
+                settings: "Settings",
+                // Admin
+                view_complaints: "View All Complaints",
+                verify: "Verify & Prioritize",
+                assign: "Assign Contractors",
+                heatmap: "Heatmap Analytics",
+                performance: "Performance",
+                // Contractor
+                my_tasks: "My Tasks",
+                upload_proof: "Upload Proof",
+                // Common
+                submit: "Submit",
+                cancel: "Cancel",
+                save: "Save",
+                status: "Status",
+                severity: "Severity",
+                location: "Location",
+                description: "Description",
+                
+                tagline: "Smart Road Damage Reporting",
+                login: "Login",
+                email: "Email",
+                password: "Password",
+                demo_accounts: "Demo Accounts",
+
+                total_reports: "Total Reports",
+                in_progress: "In Progress",
+                resolved: "Resolved",
+                recent_reports: "Recent Reports",
+                id: "ID",
+                location: "Location",
+                date: "Date",
+
+                phone_number: "Phone Number",
+                ward_area: "Ward / Area",
+                activity_stats: "Activity Stats",
+                reports: "Reports",
+                upvotes: "Upvotes",
+                severity: "Severity",
+                type: "Type",
+                new_report: "New Report",
+                damage_pothole: "Pothole",
+                damage_crack: "Crack",
+                damage_drainage: "Drainage Issue",
+                damage_manhole: "Manhole Cover Missing"
+
+
+            },
+            hi: {
+                tagline: "स्मार्ट सड़क क्षति रिपोर्टिंग",
+                login: "लॉग इन करें",
+                email: "ईमेल",
+                password: "पासवर्ड",
+                demo_accounts: "डेमो खाते",
+                theme: "थीम",
+                logout: "लॉग आउट",
+                assistant: "मार्ग सहायक",
+                chat_welcome: "नमस्ते! मैं मार्ग हूँ। मैं आज सड़क सुरक्षा में आपकी कैसे मदद कर सकता हूँ?",
+                dashboard: "डैशबोर्ड",
+                report_damage: "क्षति की रिपोर्ट करें",
+                track_complaints: "शिकायतें ट्रैक करें",
+                live_map: "लाइव मानचित्र",
+                discussion: "चर्चा पोर्टल",
+                profile: "प्रोफ़ाइल",
+                settings: "सेटिंग्स",
+                view_complaints: "सभी शिकायतें देखें",
+                verify: "सत्यापित करें",
+                assign: "ठेकेदार नियुक्त करें",
+                heatmap: "हीटमैप विश्लेषण",
+                performance: "प्रदर्शन",
+                my_tasks: "मेरे कार्य",
+                upload_proof: "प्रमाण अपलोड करें",
+                submit: "जमा करें",
+                cancel: "रद्द करें",
+                save: "सहेजें",
+                status: "स्थिति",
+                severity: "गंभीरता",
+                location: "स्थान",
+                description: "विवरण",
+            
+                tagline: "स्मार्ट सड़क क्षति रिपोर्टिंग",
+                login: "लॉग इन करें",
+
+                total_reports: "कुल रिपोर्ट",
+                in_progress: "प्रगति में",
+                resolved: "समाधान हुआ",
+                recent_reports: "हाल की रिपोर्ट",
+                id: "आईडी",
+                location: "स्थान",
+                date: "तारीख",
+                phone_number: "फोन नंबर",
+                ward_area: "वार्ड / क्षेत्र",
+                activity_stats: "गतिविधि आँकड़े",
+                reports: "रिपोर्ट",
+                upvotes: "समर्थन",
+                severity: "गंभीरता",
+                type: "प्रकार",
+                new_report: "नई रिपोर्ट",
+                damage_pothole: "गड्ढा",
+                damage_crack: "दरार",
+                damage_drainage: "जल निकासी समस्या",
+                damage_manhole: "मैनहोल ढक्कन गायब"
+
+            },
+            mr: {
+                tagline: "स्मार्ट रस्ता दुरुस्ती अहवाल",
+                login: "लॉग इन",
+                email: "ईमेल",
+                password: "पासवर्ड",
+                demo_accounts: "डेमो खाती",
+                theme: "थीम",
+                logout: "बाहेर पडा",
+                assistant: "मार्ग सहाय्यक",
+                chat_welcome: "नमस्कार! मी मार्ग आहे. रस्ता सुरक्षेत मी तुमची कशी मदत करू शकतो?",
+                dashboard: "डॅशबोर्ड",
+                report_damage: "नुकसानाची तक्रार करा",
+                track_complaints: "तक्रारींचा मागोवा घ्या",
+                live_map: "रस्ता नकाशा",
+                discussion: "चर्चा मंच",
+                profile: "प्रोफाइल",
+                settings: "सेटिंग्ज",
+                view_complaints: "सर्व तक्रारी पहा",
+                verify: "सत्यापित करा",
+                assign: "कंत्राटदार नियुक्त करा",
+                heatmap: "हीटमॅप विश्लेषण",
+                performance: "कामगिरी",
+                my_tasks: "माझी कामे",
+                upload_proof: "पुरावा अपलोड करा",
+                submit: "सबमिट करा",
+                cancel: "रद्द करा",
+                save: "जतन करा",
+                status: "स्थिती",
+                severity: "गंभीरता",
+                location: "स्थान",
+                description: "वर्णन",
+                
+                tagline: "स्मार्ट रस्ता दुरुस्ती अहवाल",
+
+                total_reports: "एकूण अहवाल",
+                in_progress: "प्रगतीत",
+                resolved: "निराकरण झाले",
+                recent_reports: "अलीकडील अहवाल",
+                id: "आयडी",
+                location: "स्थान",
+                date: "तारीख",
+                phone_number: "फोन नंबर",
+                ward_area: "विभाग / क्षेत्र",
+                activity_stats: "क्रियाकलाप आकडे",
+                reports: "अहवाल",
+                upvotes: "समर्थन",
+                severity: "तीव्रता",
+                type: "प्रकार",
+                new_report: "नवीन अहवाल",
+                damage_pothole: "खड्डा",
+                damage_crack: "भेग",
+                damage_drainage: "पाणी निचरा समस्या",
+                damage_manhole: "मॅनहोल झाकण गायब"
+
+
+            }
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Theme Init
+            if (state.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').classList.replace('fa-moon', 'fa-sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            
+            // Language Init
+            document.getElementById('lang-select').value = state.language;
+            updateTranslations();
+        });
+
+        // --- AUTHENTICATION ---
+        function fillLogin(email, pass) {
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-pass').value = pass;
+        }
+
+        function handleLogin(e) {
+
+            e.preventDefault();
+
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const role = document.getElementById('role-select').value;
+            const lang = document.getElementById('login-lang').value;
+
+            if (users[email] && users[email].pass === pass) {
+
+                state.currentUser = { email, ...users[email] };
+
+                // Apply selected language
+                state.language = lang;
+                localStorage.setItem('lang', lang);
+
+                document.getElementById('lang-select').value = lang;
+
+                changeLanguage(lang);
+
+                enterDashboard();
+
+            } else {
+                alert("Invalid Credentials");
+            }
+
+            }
+
+        function logout() {
+            state.currentUser = null;
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+
+        function enterDashboard() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            
+            // Setup UI
+            document.getElementById('user-name').innerText = state.currentUser.name;
+            document.getElementById('user-avatar').innerText = state.currentUser.name.charAt(0);
+            document.getElementById('user-role-badge').innerText = state.currentUser.role.toUpperCase();
+            
+            renderSidebar();
+            navigate('dashboard'); // Default view
+        }
+
+        // --- NAVIGATION & RENDERING ---
+        function renderSidebar() {
+            const nav = document.getElementById('sidebar-nav');
+            nav.innerHTML = '';
+            
+            const role = state.currentUser.role;
+            let items = [];
+
+            if (role === 'citizen') {
+                items = [
+                    { id: 'dashboard', icon: 'fa-home', label: 'dashboard' },
+                    { id: 'report', icon: 'fa-camera', label: 'report_damage' },
+                    { id: 'track', icon: 'fa-list-check', label: 'track_complaints' },
+                    { id: 'map', icon: 'fa-map-location-dot', label: 'live_map' },
+                    { id: 'discussion', icon: 'fa-comments', label: 'discussion' },
+                    { id: 'profile', icon: 'fa-user', label: 'profile' }
+                ];
+            } else if (role === 'admin') {
+                items = [
+                    { id: 'dashboard', icon: 'fa-chart-line', label: 'dashboard' },
+                    { id: 'complaints', icon: 'fa-clipboard-list', label: 'view_complaints' },
+                    { id: 'map', icon: 'fa-fire', label: 'heatmap' },
+                    { id: 'contractors', icon: 'fa-hard-hat', label: 'performance' },
+                    { id: 'profile', icon: 'fa-user', label: 'profile' }
+                ];
+            } else if (role === 'contractor') {
+                items = [
+                    { id: 'dashboard', icon: 'fa-tasks', label: 'my_tasks' },
+                    { id: 'map', icon: 'fa-map', label: 'live_map' },
+                    { id: 'profile', icon: 'fa-user', label: 'profile' }
+                ];
+            }
+
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = `w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors mb-1 ${state.currentView === item.id ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'}`;
+                btn.onclick = () => navigate(item.id);
+                btn.innerHTML = `<i class="fa-solid ${item.icon} w-6 text-center mr-2"></i> <span data-i18n="${item.label}">${i18n[state.language][item.label]}</span>`;
+                nav.appendChild(btn);
+            });
+            
+            updateTranslations();
+        }
+
+        function navigate(view) {
+            state.currentView = view;
+            renderSidebar(); // Update active state
+            
+            const content = document.getElementById('content-area');
+            const title = document.getElementById('page-title');
+            content.innerHTML = ''; // Clear content
+
+            // Render specific view
+            switch(view) {
+                case 'dashboard':
+                    if (state.currentUser.role === 'citizen') renderCitizenDashboard(content);
+                    else if (state.currentUser.role === 'admin') renderAdminDashboard(content);
+                    else renderContractorDashboard(content);
+                    break;
+                case 'report':
+                    renderReportForm(content);
+                    title.innerText = i18n[state.language].report_damage;
+                    break;
+                case 'track':
+                case 'complaints':
+                    renderComplaintsList(content);
+                    title.innerText = i18n[state.language].track_complaints || i18n[state.language].view_complaints;
+                    break;
+                case 'map':
+                    renderMapView(content);
+                    title.innerText = i18n[state.language].live_map;
+                    break;
+                case 'discussion':
+                    renderDiscussion(content);
+                    title.innerText = i18n[state.language].discussion;
+                    break;
+                case 'profile':
+                    renderProfile(content);
+                    title.innerText = i18n[state.language].profile;
+                    break;
+                default:
+                    content.innerHTML = '<div class="p-10 text-center text-gray-500">View Under Construction</div>';
+            }
+            
+            if(view === 'dashboard') title.innerText = i18n[state.language].dashboard;
+            updateTranslations();
+        }
+
+        // --- VIEW COMPONENTS ---
+
+        function renderCitizenDashboard(container) {
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 fade-in">
+                    <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium" data-i18n="total_reports">Total Reports</h3>
+                            <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg text-blue-600 dark:text-blue-300"><i class="fa-solid fa-file-lines"></i></div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800 dark:text-white">3</p>
+                    </div>
+                    <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium" data-i18n="in_progress">In Progress</h3>
+                            <div class="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg text-yellow-600 dark:text-yellow-300"><i class="fa-solid fa-spinner"></i></div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800 dark:text-white">1</p>
+                    </div>
+                    <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium" data-i18n="resolved">Resolved</h3>
+                            <div class="p-2 bg-green-100 dark:bg-green-900 rounded-lg text-green-600 dark:text-green-300"><i class="fa-solid fa-check"></i></div>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800 dark:text-white">1</p>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden fade-in">
+                    <div class="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white" data-i18n="recent_reports">Recent Reports</h3>
+                        <button onclick="navigate('report')" class="text-sm text-teal-600 hover:text-teal-700 font-medium">
+                            <span data-i18n="new_report">+ New Report</span>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-50 dark:bg-slate-700 text-xs uppercase text-gray-500 dark:text-gray-400">
+                                <tr>
+                                    <th class="px-6 py-3">ID</th>
+                                    <th class="px-6 py-3">Location</th>
+                                    <th class="px-6 py-3">Status</th>
+                                    <th class="px-6 py-3">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-slate-700 text-sm text-gray-700 dark:text-gray-300">
+                                ${state.complaints.map(c => `
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${c.id}</td>
+                                        <td class="px-6 py-4">${c.location}</td>
+                                        <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(c.status)}">${c.status}</span></td>
+                                        <td class="px-6 py-4">${c.date}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminDashboard(container) {
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 fade-in">
+                    <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Complaint Status Distribution</h3>
+                        <canvas id="adminChart"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Recent Activity</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-blue-100 dark:bg-blue-900 p-2 rounded-full text-blue-600 dark:text-blue-300 text-xs"><i class="fa-solid fa-plus"></i></div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800 dark:text-white">New Complaint Received</p>
+                                    <p class="text-xs text-gray-500">CMP-004 - Hotgi Road</p>
+                                </div>
+                                <span class="ml-auto text-xs text-gray-400">10m ago</span>
+                            </div>
+                            <div class="flex items-start space-x-3">
+                                <div class="bg-green-100 dark:bg-green-900 p-2 rounded-full text-green-600 dark:text-green-300 text-xs"><i class="fa-solid fa-check"></i></div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800 dark:text-white">Task Completed</p>
+                                    <p class="text-xs text-gray-500">Contractor BuildRight Corp</p>
+                                </div>
+                                <span class="ml-auto text-xs text-gray-400">1h ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 fade-in">
+                     <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Pending Verifications</h3>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${state.complaints.filter(c => c.status === 'Verified').map(c => `
+                            <div class="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                                <img src="${c.image}" class="w-full h-32 object-cover rounded mb-2">
+                                <h4 class="font-bold text-sm">${c.location}</h4>
+                                <p class="text-xs text-gray-500 mb-2">${c.type} - ${c.severity}</p>
+                                <button class="w-full bg-teal-600 text-white text-xs py-1.5 rounded hover:bg-teal-700">Assign Contractor</button>
+                            </div>
+                        `).join('')}
+                     </div>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                new Chart(document.getElementById('adminChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Reported', 'Verified', 'In Progress', 'Resolved'],
+                        datasets: [{
+                            data: [5, 8, 4, 12],
+                            backgroundColor: ['#94a3b8', '#f59e0b', '#3b82f6', '#10b981']
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                });
+            }, 100);
+        }
+
+        function renderContractorDashboard(container) {
+            const myTasks = state.complaints.filter(c => c.status === 'In Progress' || c.status === 'Verified');
+            
+            container.innerHTML = `
+                <div class="space-y-4 fade-in">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Assigned Tasks</h3>
+                    ${myTasks.map(task => `
+                        <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col md:flex-row gap-4">
+                            <img src="${task.image}" class="w-full md:w-48 h-32 object-cover rounded-lg">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 dark:text-white">${task.location}</h4>
+                                        <p class="text-sm text-gray-500">${task.type} • ${task.severity} Priority</p>
+                                    </div>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Assigned</span>
+                                </div>
+                                <div class="mt-4 flex space-x-2">
+                                    <button class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700"><i class="fa-solid fa-camera mr-2"></i>Upload Proof</button>
+                                    <button onclick="markComplete('${task.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"><i class="fa-solid fa-check mr-2"></i>Mark Complete</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderReportForm(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white dark:bg-darkcard p-8 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Report Road Damage</h3>
+                    <form onsubmit="submitComplaint(event)" class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Damage Type</label>
+                            <select id="damage-type"
+                            class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white">
+
+                            <option value="pothole">${i18n[state.language].damage_pothole}</option>
+
+                            <option value="crack">${i18n[state.language].damage_crack}</option>
+
+                            <option value="drainage">${i18n[state.language].damage_drainage}</option>
+
+                            <option value="manhole">${i18n[state.language].damage_manhole}</option>
+
+                            </select>
+                        </div>
+                        <div>
+                            <label data-i18n="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+                            <div class="flex">
+                                <input type="text" id="gps-input" class="flex-1 border border-gray-300 dark:border-slate-600 rounded-l-lg px-4 py-2 bg-gray-50 dark:bg-slate-800 dark:text-white" readonly>
+                                <button type="button" onclick="getLocation()" class="bg-gray-200 dark:bg-slate-600 px-4 rounded-r-lg text-gray-600 dark:text-gray-200"><i class="fa-solid fa-location-crosshairs"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                            <div class="relative">
+                                <textarea id="desc-input" rows="3" class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white" placeholder="Describe the issue..."></textarea>
+                                <button type="button" onclick="startVoiceDescription()" class="absolute bottom-2 right-2 text-gray-400 hover:text-teal-600"><i class="fa-solid fa-microphone"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Image</label>
+                            <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-6 text-center hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer">
+                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+                                <p class="text-sm text-gray-500">Click to upload or drag and drop</p>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 transition shadow-lg">Submit Report</button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function renderComplaintsList(container) {
+            container.innerHTML = `
+                <div class="bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden fade-in">
+                    <div class="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                        <input type="text" placeholder="Search complaints..." class="border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm bg-gray-50 dark:bg-slate-700 dark:text-white">
+                        <button class="text-sm text-teal-600 font-medium">Filter <i class="fa-solid fa-filter ml-1"></i></button>
+                    </div>
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-slate-700 text-xs uppercase text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-6 py-3" data-i18n="id">ID</th>
+                                <th class="px-6 py-3" data-i18n="description">Type</th>
+                                <th class="px-6 py-3" data-i18n="location">Location</th>
+                                <th class="px-6 py-3" data-i18n="severity">Severity</th>
+                                <th class="px-6 py-3" data-i18n="status">Status</th>
+                                ${state.currentUser.role === 'admin' ? '<th class="px-6 py-3">Action</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-slate-700 text-sm text-gray-700 dark:text-gray-300">
+                            ${state.complaints.map(c => `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                                    <td class="px-6 py-4 font-medium">${c.id}</td>
+                                    <td class="px-6 py-4" id="type-${c.id}">${c.type}</td>
+                                    <td class="px-6 py-4" id="loc-${c.id}">${c.location}</td>
+                                    <td class="px-6 py-4"><span class="text-xs font-bold ${c.severity === 'High' ? 'text-red-500' : 'text-yellow-500'}">${c.severity}</span></td>
+                                    <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(c.status)}">${c.status}</span></td>
+                                    ${state.currentUser.role === 'admin' ? `
+                                        <td class="px-6 py-4">
+                                            <select onchange="updateStatus('${c.id}', this.value)" class="text-xs border rounded p-1 bg-white dark:bg-slate-800">
+                                                <option value="Reported" ${c.status === 'Reported' ? 'selected' : ''}>Reported</option>
+                                                <option value="Verified" ${c.status === 'Verified' ? 'selected' : ''}>Verified</option>
+                                                <option value="In Progress" ${c.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                                <option value="Resolved" ${c.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                                            </select>
+                                        </td>
+                                    ` : ''}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            setTimeout(translateComplaints, 500);
+        }
+
+        function renderMapView(container) {
+            container.innerHTML = `
+                <div class="h-full w-full rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700 relative fade-in">
+                    <div id="map" class="h-full w-full z-0"></div>
+                    <div class="absolute top-4 right-4 z-[400] bg-white dark:bg-darkcard p-2 rounded-lg shadow-md">
+                        <div class="flex items-center space-x-2 text-xs mb-1"><span class="w-3 h-3 rounded-full bg-red-500"></span><span>High Severity</span></div>
+                        <div class="flex items-center space-x-2 text-xs"><span class="w-3 h-3 rounded-full bg-yellow-500"></span><span>Medium Severity</span></div>
+                    </div>
+                </div>
+            `;
+            
+            // Initialize Leaflet
+            setTimeout(() => {
+                const map = L.map('map').setView([17.6605, 75.9064], 13); // Solapur coords
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+
+                state.complaints.forEach(c => {
+                    const color = c.severity === 'High' ? 'red' : (c.severity === 'Medium' ? 'orange' : 'green');
+                    L.circleMarker([c.lat, c.lng], {
+                        radius: 8,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map).bindPopup(`<b>${c.location}</b><br>${c.type}<br>Status: ${c.status}`);
+                });
+            }, 100);
+        }
+
+        function renderDiscussion(container) {
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full fade-in">
+                    <div class="lg:col-span-2 space-y-4 overflow-y-auto pr-2">
+                        <div class="flex space-x-2 border-b border-gray-200 dark:border-slate-700 mb-4">
+                            <button class="px-4 py-2 border-b-2 border-teal-600 text-teal-600 font-medium">Reports Feed</button>
+                            <button class="px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">Community Discussions</button>
+                        </div>
+                        
+                        ${state.posts.map(post => `
+                            <div class="bg-white dark:bg-darkcard p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+                                <div class="flex items-center mb-3">
+                                    <div class="h-8 w-8 rounded-full bg-gray-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold mr-2">${post.author.charAt(0)}</div>
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-800 dark:text-white">${post.author}</p>
+                                        <p class="text-xs text-gray-500">${post.time}</p>
+                                    </div>
+                                    <span class="ml-auto text-xs px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-gray-600 dark:text-gray-300">${post.type === 'report' ? 'Report' : 'Discussion'}</span>
+                                </div>
+                                <p class="text-gray-700 dark:text-gray-300 mb-3" id="post-${post.id}">
+                                ${post.content}
+                                </p>
+                                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                    <button class="flex items-center hover:text-teal-600"><i class="fa-solid fa-arrow-up mr-1"></i> ${post.upvotes}</button>
+                                    <button class="flex items-center hover:text-teal-600"><i class="fa-solid fa-comment mr-1"></i> ${post.comments}</button>
+                                    <button class="flex items-center hover:text-teal-600"><i class="fa-solid fa-share mr-1"></i> Share</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="hidden lg:block">
+                        <div class="bg-white dark:bg-darkcard p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 sticky top-0">
+                            <h4 class="font-bold text-gray-800 dark:text-white mb-4">Start a Discussion</h4>
+                            <textarea class="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-3 text-sm mb-3 bg-gray-50 dark:bg-slate-700 dark:text-white" rows="4" placeholder="Share your ideas or reports..."></textarea>
+                            <button class="w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700">Post</button>
+                            
+                            <div class="mt-6">
+                                <h4 class="font-bold text-gray-800 dark:text-white mb-3 text-sm">Trending Topics</h4>
+                                <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                    <li class="cursor-pointer hover:text-teal-600">#PotholeFreeSolapur</li>
+                                    <li class="cursor-pointer hover:text-teal-600">#TrafficSafety</li>
+                                    <li class="cursor-pointer hover:text-teal-600">#SmartCity</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            setTimeout(translateAllPosts, 500);
+        }
+
+        function renderProfile(container) {
+            container.innerHTML = `
+                <div class="max-w-3xl mx-auto bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden fade-in">
+                    <div class="h-32 bg-gradient-to-r from-teal-500 to-blue-600"></div>
+                    <div class="px-8 pb-8">
+                        <div class="relative flex justify-between items-end -mt-12 mb-6">
+                            <div class="h-24 w-24 rounded-full border-4 border-white dark:border-darkcard bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-600">
+                                ${state.currentUser.name.charAt(0)}
+                            </div>
+                            <button class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700">Edit Profile</button>
+                        </div>
+                        
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">${state.currentUser.name}</h2>
+                        <p class="text-gray-500 mb-6">${state.currentUser.email}</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label data-i18n="phone_number" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
+                                <input type="text" value="+91 98765 43210" class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-slate-700 dark:text-white" disabled>
+                            </div>
+                            <div>
+                                <label data-i18n="ward_area" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ward/Area</label>
+                                <input type="text" value="Solapur North" class="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-slate-700 dark:text-white" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-slate-700">
+                            <h3 data-i18n="activity_stats" class="font-bold text-gray-800 dark:text-white mb-4">Activity Stats</h3>
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div class="text-2xl font-bold text-teal-600">12</div>
+                                    <div data-i18n="reports" class="text-xs text-gray-500 uppercase">Reports</div>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div class="text-2xl font-bold text-teal-600">85%</div>
+                                    <div data-i18n="resolved" class="text-xs text-gray-500 uppercase">Resolved</div>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div class="text-2xl font-bold text-teal-600">5</div>
+                                    <div data-i18n="upvotes" class="text-xs text-gray-500 uppercase">Upvotes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- UTILITIES & HELPERS ---
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'Reported': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+                case 'Verified': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+                case 'In Progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+                case 'Resolved': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.classList.replace('fa-sun', 'fa-moon');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+
+        function changeLanguage(lang) {
+
+            state.language = lang;
+            localStorage.setItem('lang', lang);
+
+            // Change font based on language
+            document.body.classList.remove('hindi','marathi');
+
+            if(lang === "hi"){
+                document.body.classList.add("hindi");
+            }
+
+            if(lang === "mr"){
+                document.body.classList.add("marathi");
+            }
+
+            updateTranslations();
+            renderSidebar();
+            navigate(state.currentView);   // re-render current view
+        }
+
+        function updateTranslations() {
+
+            const elements = document.querySelectorAll('[data-i18n]');
+
+            elements.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+
+                if (i18n[state.language][key]) {
+                    el.innerText = i18n[state.language][key];
+                }
+            });
+
+            // -------- AUTO TRANSLATE COMMON TEXT --------
+
+            const dictionary = {
+                "Total Reports": "total_reports",
+                "In Progress": "in_progress",
+                "Resolved": "resolved",
+                "Recent Reports": "recent_reports",
+                "Location": "location",
+                "Date": "date",
+                "Report Road Damage": "report_damage",
+                "Description": "description",
+                "Submit Report": "submit",
+                "Damage Type": "description",
+                "Upload Image": "submit"
+            };
+
+            Object.keys(dictionary).forEach(text => {
+
+                document.querySelectorAll("*").forEach(el => {
+
+                    if(el.childNodes.length === 1 && el.textContent.trim() === text){
+
+                        const key = dictionary[text];
+
+                        if(i18n[state.language][key]){
+                            el.textContent = i18n[state.language][key];
+                        }
+
+                    }
+
+                });
+
+            });
+
+            }
+
+        // --- ACTIONS ---
+
+        function getLocation() {
+            const input = document.getElementById('gps-input');
+            input.value = "Locating...";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    input.value = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+                }, () => {
+                    input.value = "17.6605, 75.9064 (Solapur)"; // Fallback
+                });
+            } else {
+                input.value = "Geolocation not supported";
+            }
+        }
+
+        function submitComplaint(e) {
+            e.preventDefault();
+            const id = 'CMP-' + Math.floor(Math.random() * 1000);
+            const newComplaint = {
+                id: id,
+                type: 'Pothole',
+                location: 'Current Location',
+                severity: 'Medium',
+                status: 'Reported',
+                date: new Date().toISOString().split('T')[0],
+                lat: 17.6605,
+                lng: 75.9064,
+                reporter: state.currentUser.email,
+                image: 'https://placehold.co/600x400/333/fff?text=New+Report'
+            };
+            state.complaints.unshift(newComplaint);
+            alert(`Complaint Submitted Successfully! ID: ${id}`);
+            navigate('track');
+        }
+
+        function updateStatus(id, newStatus) {
+            const c = state.complaints.find(x => x.id === id);
+            if(c) c.status = newStatus;
+            renderComplaintsList(document.getElementById('content-area'));
+        }
+
+        function markComplete(id) {
+            updateStatus(id, 'Resolved');
+            alert('Task marked as completed. Awaiting admin verification.');
+            navigate('dashboard');
+        }
+
+        // --- CHATBOT LOGIC ---
+        let chatOpen = false;
+        function toggleChat() {
+            const win = document.getElementById('chat-window');
+            chatOpen = !chatOpen;
+            if(chatOpen) {
+                win.classList.remove('hidden');
+                setTimeout(() => {
+                    win.classList.remove('scale-95', 'opacity-0');
+                    win.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                win.classList.remove('scale-100', 'opacity-100');
+                win.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => win.classList.add('hidden'), 300);
+            }
+        }
+
+        function handleChatKey(e) {
+            if(e.key === 'Enter') sendChatMessage();
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            addMessage(msg, 'user');
+            input.value = '';
+
+            // Bot Logic
+            setTimeout(() => {
+                let reply = "I'm sorry, I didn't understand that. Try asking about 'road status' or 'complaint ID'.";
+                const lower = msg.toLowerCase();
+                
+                if(lower.includes('hello') || lower.includes('hi')) reply = "Hello! How can I assist you with Margakshat today?";
+                else if(lower.includes('status')) reply = "You can track your complaint status in the 'Track Complaints' section.";
+                else if(lower.includes('pothole')) reply = "To report a pothole, please use the 'Report Damage' form in your dashboard.";
+                else if(lower.includes('contact') || lower.includes('phone')) reply = "You can reach SMC at 0217-1234567 or email help@margakshat.com";
+                else if(lower.includes('emergency')) reply = "For emergencies, dial 100 (Police) or 108 (Ambulance).";
+                
+                // Multilingual simple support
+                if(state.language === 'hi') {
+                    if(lower.includes('status')) reply = "आप 'Track Complaints' अनुभाग में अपनी शिकायत की स्थिति देख सकते हैं।";
+                } else if (state.language === 'mr') {
+                    if(lower.includes('status')) reply = "तुम्ही 'Track Complaints' विभागात तक्रारीची स्थिती तपासू शकता.";
+                }
+
+                addMessage(reply, 'bot');
+            }, 1000);
+        }
+
+        function addMessage(text, sender) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `flex items-start ${sender === 'user' ? 'justify-end' : ''}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `rounded-lg py-2 px-3 max-w-[85%] text-sm ${sender === 'user' ? 'bg-teal-600 text-white rounded-br-none' : 'bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 rounded-bl-none'}`;
+            bubble.innerText = text;
+            
+            div.appendChild(bubble);
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // --- VOICE API ---
+        function startVoiceDescription() {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert("Voice recognition not supported in this browser.");
+                return;
+            }
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = state.language === 'en' ? 'en-IN' : (state.language === 'hi' ? 'hi-IN' : 'mr-IN');
+            recognition.start();
+            
+            const input = document.getElementById('desc-input');
+            input.placeholder = "Listening...";
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                input.value += (input.value ? ' ' : '') + transcript;
+                input.placeholder = "Describe the issue...";
+            };
+
+            recognition.onerror = function() {
+                input.placeholder = "Error. Try again.";
+            };
+        }
+
+        function startVoiceInput() {
+             if (!('webkitSpeechRecognition' in window)) {
+                alert("Voice recognition not supported.");
+                return;
+            }
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'en-IN';
+            recognition.start();
+            
+            recognition.onresult = function(event) {
+                document.getElementById('chat-input').value = event.results[0][0].transcript;
+                sendChatMessage();
+            };
+        }
+        async function translateText(text, targetLang) {
+
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            return data[0][0][0];
+        }
+
+        async function translateAllPosts(){
+
+            if(state.language === "en") return;
+
+            for(const post of state.posts){
+
+                const el = document.getElementById(`post-${post.id}`);
+
+                if(!el) continue;
+
+                const translated = await translateText(post.content, state.language);
+
+                el.innerText = translated;
+            }
+
+        }
+        async function translateComplaints(){
+
+            if(state.language === "en") return;
+
+            for(const c of state.complaints){
+
+                const typeEl = document.getElementById(`type-${c.id}`);
+                const locEl = document.getElementById(`loc-${c.id}`);
+
+                if(typeEl){
+                    const translatedType = await translateText(c.type, state.language);
+                    typeEl.innerText = translatedType;
+                }
+
+                if(locEl){
+                    const translatedLoc = await translateText(c.location, state.language);
+                    locEl.innerText = translatedLoc;
+                }
+
+            }
+
+            }
+
+    </script>
+</body>
+</html>
