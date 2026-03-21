@@ -1,11 +1,8 @@
 langchain
-python-dotenv
-ipykernel
 langchain-community
+langchain-ollama
+langchain-huggingface
 python-dotenv
-langchain_openai
-openai
-bs4
 faiss-cpu
 pypdf
-streamlit
+ipykernel
