@@ -2,25 +2,18 @@ import re
 import cv2
 import numpy as np
 import pytesseract
+import shutil
+import platform
+import os
 from PIL import Image, ExifTags
 from pathlib import Path
 from ultralytics import YOLO
 import cloudinary
 import cloudinary.uploader
-import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
-# ------------------ CONFIG ------------------
-
-MODEL_PATH     = Path("runs/detect/train2/weights/best.pt")
-CONF_THRESHOLD = 0.6
-MM_PER_PIXEL   = 2.5
-
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# ── Load .env ──
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 # ------------------ CLOUDINARY CONFIG ------------------
 
@@ -42,6 +35,49 @@ def upload_to_cloudinary(file_path, folder="margakshat"):
         print(f"Cloudinary upload failed: {e}")
         return None
 
+# ------------------ CONFIG ------------------
+
+MODEL_PATH     = Path("runs/detect/train2/weights/best.pt")
+CONF_THRESHOLD = 0.6
+MM_PER_PIXEL   = 2.5
+
+# ------------------ AUTO-DETECT TESSERACT ------------------
+
+def find_tesseract():
+    # Check system PATH first
+    path = shutil.which("tesseract")
+    if path:
+        return path
+
+    # Windows common locations
+    if platform.system() == "Windows":
+        windows_paths = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            r"C:\Users\{}\AppData\Local\Programs\Tesseract-OCR\tesseract.exe".format(
+                os.environ.get("USERNAME", "")
+            ),
+        ]
+        for p in windows_paths:
+            if os.path.exists(p):
+                return p
+
+    # Mac (homebrew)
+    if platform.system() == "Darwin":
+        for p in ["/usr/local/bin/tesseract", "/opt/homebrew/bin/tesseract"]:
+            if os.path.exists(p):
+                return p
+
+    # Linux fallback
+    return "tesseract"
+
+tesseract_path = find_tesseract()
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    print(f"Tesseract found at: {tesseract_path}")
+else:
+    print("WARNING: Tesseract not found — OCR will not work")
+
 # ------------------ LOAD MODEL ------------------
 
 model = YOLO(MODEL_PATH)
@@ -54,7 +90,6 @@ def extract_gps_from_exif(image_path):
         img      = Image.open(image_path)
         exif_raw = img._getexif()
         if not exif_raw:
-            print("No EXIF data found")
             return None, None
 
         gps_info = {}
@@ -65,7 +100,6 @@ def extract_gps_from_exif(image_path):
                     gps_info[ExifTags.GPSTAGS.get(gps_tag, gps_tag)] = gps_val
 
         if not gps_info:
-            print("No GPSInfo tag in EXIF")
             return None, None
 
         def convert_dms(dms, ref):
@@ -89,7 +123,6 @@ def extract_gps_from_exif(image_path):
 
 def extract_gps_from_ocr(ocr_text):
     """Extract GPS from camera-stamped text watermark on image."""
-    # Matches: Lat 17.123456 / Latitude: 17.123456 / LAT17.123456
     lat_match = re.search(
         r"Lat(?:itude)?\s*[:\s]*([\d]{1,3}\.[\d]+)",
         ocr_text, re.IGNORECASE
@@ -106,7 +139,7 @@ def extract_gps_from_ocr(ocr_text):
 
 
 def extract_address_from_ocr(ocr_text):
-    """Try to extract address line from OCR text."""
+    """Extract address line from OCR text."""
     for line in ocr_text.splitlines():
         line = line.strip()
         if "India" in line and len(line) > 6:
@@ -160,7 +193,7 @@ def process_image(image_path: str):
                 "area_m2":    round(area_m2, 4)
             })
 
-            # Draw bounding box + label
+            # Draw bounding box + label on processed image
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(
                 img,
@@ -179,31 +212,30 @@ def process_image(image_path: str):
     if processed_path.exists():
         os.remove(processed_path)
 
+    # ------------------ OCR ------------------
+
+    gray     = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ocr_text = pytesseract.image_to_string(gray, config="--psm 6")
+
     # ------------------ GPS EXTRACTION ------------------
 
     # Step 1 — Try EXIF metadata (most accurate)
     latitude, longitude = extract_gps_from_exif(image_path)
     gps_source = "exif" if latitude and longitude else None
 
-    # Step 2 — Try OCR text watermark on image
+    # Step 2 — Try OCR watermark text on image
     if not latitude or not longitude:
-        gray     = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ocr_text = pytesseract.image_to_string(gray, config="--psm 6")
         latitude, longitude = extract_gps_from_ocr(ocr_text)
         gps_source = "ocr" if latitude and longitude else None
-    else:
-        # Still run OCR for address extraction
-        gray     = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ocr_text = pytesseract.image_to_string(gray, config="--psm 6")
 
-    # Step 3 — browser GPS fallback is handled in backend_api.py
+    # Step 3 — Browser GPS fallback handled in backend_api.py
     if not latitude or not longitude:
         print("No GPS found in image — will use browser GPS fallback")
         gps_source = "browser_fallback"
 
     # ------------------ ADDRESS EXTRACTION ------------------
 
-    address = extract_address_from_ocr(ocr_text) if 'ocr_text' in dir() else None
+    address = extract_address_from_ocr(ocr_text)
 
     # ------------------ FINAL RESPONSE ------------------
 
