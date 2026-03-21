@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pymongo
+python-multipart
+python-dotenv
+cloudinary
+opencv-python
+ultralytics
+pytesseract
+Pillow
+langchain-community
+langchain-ollama
+faiss-cpu
+sentence-transformers
+pypdf
