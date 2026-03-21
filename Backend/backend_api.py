@@ -5,9 +5,6 @@ import os
 
 from backend.process_image import process_image
 from backend.database import save_pothole_report, get_all_potholes
-
-
-# Add these imports at the top
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
