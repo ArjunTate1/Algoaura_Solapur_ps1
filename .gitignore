@@ -1,1 +1,27 @@
+# Open your .gitignore and make sure these are in it:
 
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Temp files
+temp_*
+processed_*
+
+# VS Code
+.vscode/
+
+# Data files (too large)
+pothole_data.db
+dataset/
+private_data/
+
+# Model weights (too large for GitHub — use Git LFS or share separately)
+# runs/detect/train2/weights/best.pt
