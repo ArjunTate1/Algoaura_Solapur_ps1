@@ -159,7 +159,7 @@ def resolve_pothole(data: dict):
 
 
 # ── Load vectorstore once on startup ──
-PDF_PATH = "C:/Users/Asus/Desktop/Algoaura/chatbot2/genai-traffic-law-assistant/2202011053641.pdf"
+PDF_PATH = Path(__file__).parent.parent / "chatbot" / "2202011053641.pdf"
 
 def load_vectorstore():
     loader   = PyPDFLoader(PDF_PATH)
