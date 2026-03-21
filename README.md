@@ -17,3 +17,14 @@ Create via POST /register:
 - user1 / user123 (role: user)
 - admin1 / admin123 (role: admin)
 - contractor1 / contractor123 (role: contractor)
+
+
+## Chatbot Setup
+The chatbot requires Ollama running locally.
+
+1. Install Ollama from https://ollama.com
+2. Pull the model:
+   ollama pull llama3
+3. Run Ollama:
+   ollama serve
+4. Run the chatbot backend is already integrated into FastAPI via /chat endpoint
