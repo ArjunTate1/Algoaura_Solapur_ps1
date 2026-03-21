@@ -5,15 +5,7 @@
 
 ---
 
-## 🎥 Demo Video
-> 📹 [Add your demo video link here — YouTube / Google Drive]
 
----
-
-## 📸 Screenshots
-> Add screenshots of your dashboards here after recording
-
----
 
 ## 🚀 Key Features
 
