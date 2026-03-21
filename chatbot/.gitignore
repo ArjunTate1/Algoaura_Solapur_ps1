@@ -1,0 +1,7 @@
+# pushing environment files here
+.env
+
+# Ignoring virtual environment folders
+.venv/
+__pycache__/
+*.pyc

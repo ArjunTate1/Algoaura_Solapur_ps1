@@ -142,7 +142,7 @@ def get_potholes_with_priority():
     for p in potholes:
         p["_id"] = str(p["_id"])
 
-    # Get max values for normalization
+    
     max_count        = max((p.get("pothole_count", 0)  for p in potholes), default=1)
     max_area         = max(
         (p["potholes"][0].get("area_m2", 0) for p in potholes if p.get("potholes")),

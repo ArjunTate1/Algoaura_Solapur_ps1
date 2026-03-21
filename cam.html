@@ -1,0 +1,286 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Live GPS Camera</title>
+
+<style>
+
+html, body {
+  margin:0;
+  padding:0;
+  height:100%;
+  background:#f4f6f8;
+  font-family:"Segoe UI", Arial, sans-serif;
+}
+
+/* CAMERA CONTAINER */
+.camera-container{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+}
+
+video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  background:black;
+}
+
+/* CAPTURE BUTTON */
+.capture-btn{
+  position:absolute;
+  bottom:140px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:14px 28px;
+  border:none;
+  border-radius:40px;
+  background:#1565c0;
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  box-shadow:0 6px 16px rgba(0,0,0,0.3);
+}
+
+/* BOTTOM INFO PANEL */
+.overlay{
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100%;
+  background:rgba(255,255,255,0.75);
+  backdrop-filter:blur(6px);
+  padding:14px 16px;
+  box-sizing:border-box;
+  border-top-left-radius:16px;
+  border-top-right-radius:16px;
+  text-align:center;
+}
+
+.row{
+  font-size:15px;
+  color:#333;
+  margin-bottom:6px;
+}
+
+.label{
+  font-weight:600;
+  color:#1565c0;
+}
+
+.coords{
+  font-family:monospace;
+}
+
+.time{
+  font-size:13px;
+  color:#555;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="camera-container">
+
+<video id="video" autoplay playsinline></video>
+
+<button class="capture-btn" onclick="captureAndUpload()">
+Capture & Upload
+</button>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div class="overlay">
+
+<div class="row">
+<span class="label">Address:</span>
+<div id="address">Fetching address…</div>
+</div>
+
+<div class="row coords">
+<span class="label">Lat:</span>
+<span id="lat">--</span>
+&nbsp;&nbsp;
+<span class="label">Lng:</span>
+<span id="lng">--</span>
+</div>
+
+<div class="row time" id="time">--</div>
+
+</div>
+</div>
+
+<script>
+
+/* ------------------------
+CONFIG
+------------------------ */
+
+const TOMTOM_API_KEY="YOUR_TOMTOM_KEY_HERE"
+const UPLOAD_API="http://localhost:8000/upload"
+
+
+/* ------------------------
+ELEMENTS
+------------------------ */
+
+const video=document.getElementById("video")
+const latEl=document.getElementById("lat")
+const lngEl=document.getElementById("lng")
+const addressEl=document.getElementById("address")
+const timeEl=document.getElementById("time")
+
+let lastGeocodeTime=0
+
+
+/* ------------------------
+START CAMERA
+------------------------ */
+
+navigator.mediaDevices.getUserMedia({
+  video:{facingMode:"environment"},
+  audio:false
+})
+.then(stream=>{
+  video.srcObject=stream
+})
+.catch(()=>{
+  alert("Camera permission denied")
+})
+
+
+/* ------------------------
+LIVE TIME
+------------------------ */
+
+setInterval(()=>{
+  timeEl.innerText=new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})
+},1000)
+
+
+/* ------------------------
+GPS LOCATION
+------------------------ */
+
+navigator.geolocation.watchPosition(
+
+pos=>{
+
+const lat=pos.coords.latitude
+const lng=pos.coords.longitude
+
+latEl.innerText=lat.toFixed(6)
+lngEl.innerText=lng.toFixed(6)
+
+if(Date.now()-lastGeocodeTime>10000){
+lastGeocodeTime=Date.now()
+reverseGeocode(lat,lng)
+}
+
+},
+
+()=>{
+addressEl.innerText="Location permission denied"
+},
+
+{enableHighAccuracy:true}
+
+)
+
+
+/* ------------------------
+REVERSE GEOCODING
+------------------------ */
+
+function reverseGeocode(lat,lng){
+
+fetch(`https://api.tomtom.com/search/2/reverseGeocode/${lat},${lng}.json?key=${TOMTOM_API_KEY}`)
+
+.then(res=>res.json())
+
+.then(data=>{
+
+if(data.addresses && data.addresses.length>0){
+
+addressEl.innerText=data.addresses[0].address.freeformAddress
+
+}else{
+
+addressEl.innerText="Address not found"
+
+}
+
+})
+
+.catch(()=>{
+
+addressEl.innerText="Address unavailable"
+
+})
+
+}
+
+
+/* ------------------------
+CAPTURE + UPLOAD
+------------------------ */
+
+async function captureAndUpload(){
+
+const canvas=document.getElementById("canvas")
+const ctx=canvas.getContext("2d")
+
+canvas.width=video.videoWidth
+canvas.height=video.videoHeight
+
+ctx.drawImage(video,0,0)
+
+canvas.toBlob(async blob=>{
+
+const lat=latEl.innerText
+const lng=lngEl.innerText
+const address=addressEl.innerText
+const time=new Date().toISOString()
+
+const formData=new FormData()
+
+formData.append("file",blob,"pothole.jpg")
+formData.append("lat",lat)
+formData.append("lng",lng)
+formData.append("address",address)
+formData.append("time",time)
+
+try{
+
+const response=await fetch(UPLOAD_API,{
+method:"POST",
+body:formData
+})
+
+const result=await response.json()
+
+alert("Upload successful")
+console.log(result)
+
+}catch(e){
+
+alert("Upload failed")
+
+}
+
+},"image/jpeg")
+
+}
+
+</script>
+
+</body>
+</html>
+```

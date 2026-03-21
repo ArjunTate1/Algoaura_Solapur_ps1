@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Margakshat · Report Pothole</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"/>
+  <style>
+    :root {
+      --bg:      #0f1117;
+      --surface: #181c27;
+      --card:    #1e2333;
+      --border:  rgba(255,255,255,0.08);
+      --accent:  #f97316;
+      --ok:      #22c55e;
+      --danger:  #ef4444;
+      --warning: #f59e0b;
+      --info:    #0ea5e9;
+      --text:    #f1f5f9;
+      --muted:   #64748b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+    .brand-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; }
+    .brand-sub  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .user-chip { font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); }
+    .logout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 4px; transition: color 0.15s; }
+    .logout-btn:hover { color: var(--danger); }
+
+    /* NAV TABS */
+    .nav-tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .nav-tab .tab-icon { font-size: 18px; }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .nav-tab:hover  { color: var(--text); }
+
+    /* PAGES */
+    .page { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+    .page.active { display: flex; }
+
+    /* ── REPORT PAGE ── */
+    .report-page { padding: 20px 16px; gap: 16px; }
+
+    /* GPS status bar */
+    .gps-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .gps-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .gps-dot.searching { background: var(--warning); animation: pulse 1s infinite; }
+    .gps-dot.found     { background: var(--ok);      animation: pulse 1.5s infinite; }
+    .gps-dot.error     { background: var(--danger); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .gps-info { flex: 1; }
+    .gps-label { font-size: 12px; font-weight: 500; }
+    .gps-coords { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .gps-refresh { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); padding: 5px 10px; font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .gps-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Camera box */
+    .camera-box {
+      background: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .camera-box:hover { border-color: var(--accent); }
+    .camera-box.has-image { border-style: solid; border-color: var(--accent); }
+    .camera-placeholder { text-align: center; color: var(--muted); }
+    .camera-placeholder .cam-icon { font-size: 40px; margin-bottom: 8px; }
+    .camera-placeholder p { font-size: 13px; }
+    .camera-placeholder small { font-size: 11px; opacity: 0.6; }
+    #preview-img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: none;
+      border-radius: 14px;
+    }
+    .preview-overlay {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 10px;
+      color: #fff;
+      display: none;
+    }
+    #file-input { display: none; }
+
+    /* Address field */
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .field-input {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .field-input:focus { border-color: var(--accent); }
+    .field-input::placeholder { color: var(--muted); }
+
+    /* Submit btn */
+    .submit-btn {
+      padding: 15px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:hover   { opacity: 0.9; }
+    .submit-btn:active  { transform: scale(0.98); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 999;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .toast.show   { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--ok);     color: var(--ok); }
+    .toast.error   { border-color: var(--danger);  color: var(--danger); }
+    .toast.info    { border-color: var(--info);    color: var(--info); }
+
+    /* ── HISTORY PAGE ── */
+    .history-page { padding: 16px; gap: 12px; }
+    .history-header { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+    .report-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .report-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+    .report-card.high::before   { background: var(--danger); }
+    .report-card.medium::before { background: var(--warning); }
+    .report-card.low::before    { background: var(--ok); }
+    .rc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .rc-date { font-size: 10px; color: var(--muted); }
+    .sev-badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+    .sev-badge.high   { background: rgba(239,68,68,0.15);  color: var(--danger); }
+    .sev-badge.medium { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .sev-badge.low    { background: rgba(34,197,94,0.15);  color: var(--ok); }
+    .rc-address { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .rc-coords  { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .no-reports { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 13px; }
+    .no-reports-icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* ── MAP PAGE ── */
+    .map-page { padding: 0; }
+    .map-iframe { width: 100%; flex: 1; border: none; min-height: calc(100vh - 120px); }
+
+    /* Spinner */
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Progress bar */
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; display: none; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.3s; }
+    .progress-bar.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-mark">🛣️</div>
+  <div>
+    <div class="brand-name">Margakshat</div>
+    <div class="brand-sub">Report Portal</div>
+  </div>
+  <div class="header-right">
+    <div class="user-chip">👤 <span id="username-display">User</span></div>
+    <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="tab-report" onclick="switchTab('report')">
+    <span class="tab-icon">📸</span>Report
+  </div>
+  <div class="nav-tab" id="tab-history" onclick="switchTab('history')">
+    <span class="tab-icon">📋</span>My Reports
+  </div>
+  <div class="nav-tab" id="tab-map" onclick="switchTab('map')">
+    <span class="tab-icon">🗺️</span>Map
+  </div>
+  <div class="nav-tab" id="tab-analytics" onclick="switchTab('analytics')"><span class="tab-icon">📊</span>Analytics</div>
+  <div class="nav-tab" id="tab-forum" onclick="switchTab('forum')"><span class="tab-icon">💬</span>Forum</div>
+  <div class="nav-tab" id="tab-chat" onclick="switchTab('chat')">
+    <span class="tab-icon">🤖</span>Assistant
+  </div>
+</div>
+
+<!-- ══ REPORT PAGE ══ -->
+<div class="page report-page active" id="page-report">
+
+  <!-- GPS Bar -->
+  <div class="gps-bar">
+    <div class="gps-dot searching" id="gps-dot"></div>
+    <div class="gps-info">
+      <div class="gps-label" id="gps-label">Locating your position…</div>
+      <div class="gps-coords" id="gps-coords">Waiting for GPS</div>
+    </div>
+    <button class="gps-refresh" onclick="getGPS()">↺ Refresh</button>
+  </div>
+
+  <!-- Camera -->
+  <div class="camera-box" id="camera-box" onclick="document.getElementById('file-input').click()">
+    <div class="camera-placeholder" id="cam-placeholder">
+      <div class="cam-icon">📷</div>
+      <p>Tap to capture or upload</p>
+      <small>Photo of the pothole</small>
+    </div>
+    <img id="preview-img" alt="Preview"/>
+    <div class="preview-overlay" id="preview-overlay">✓ Image selected</div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" onchange="onImageSelected(event)"/>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar" id="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <!-- Address -->
+  <div class="field-group">
+    <div class="field-label">Location / Address</div>
+    <input type="text" class="field-input" id="address-input" placeholder="Auto-filled from GPS or type manually"/>
+  </div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submit-btn" onclick="submitReport()">
+    📤 Submit Report
+  </button>
+
+</div>
+
+<!-- ══ HISTORY PAGE ══ -->
+<div class="page history-page" id="page-history">
+  <div class="history-header">My Reports</div>
+  <div id="history-list">
+    <div class="no-reports">
+      <div class="no-reports-icon">📋</div>
+      Loading your reports…
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAP PAGE ══ -->
+<div class="page map-page" id="page-map">
+  <iframe class="map-iframe" id="map-iframe" src="" title="Pothole Map"></iframe>
+</div>
+
+<!-- ══ ANALYTICS PAGE ══ -->
+<div class="page map-page" id="page-analytics">
+  <iframe class="map-iframe" id="analytics-iframe" src="" title="Analytics"></iframe>
+</div>
+
+<!-- ══ FORUM PAGE ══ -->
+<div class="page map-page" id="page-forum">
+  <iframe class="map-iframe" id="forum-iframe" src="" title="Forum"></iframe>
+</div>
+
+<!-- ══ CHAT PAGE ══ -->
+<div class="page map-page" id="page-chat">
+  <iframe class="map-iframe" id="chat-iframe" src="" title="AI Assistant"></iframe>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── AUTH CHECK ──
+const session  = JSON.parse(localStorage.getItem('mg_user') || 'null');
+const username = session?.username || 'user';
+if (!session || session.role !== 'user') {
+  window.location.href = 'login.html';
+}
+document.getElementById('username-display').textContent = session?.username || 'User';
+
+function logout() {
+  localStorage.removeItem('mg_user');
+  window.location.href = 'login.html';
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'history') loadHistory();
+  if (tab === 'map') {
+    const iframe = document.getElementById('map-iframe');
+    if (!iframe.src || iframe.src === window.location.href) {
+      iframe.src = 'maps.html';
+    }
+  }
+  if (tab === 'analytics') {
+    const ai = document.getElementById('analytics-iframe');
+    if (!ai.src || ai.src === window.location.href) ai.src = 'analytics.html';
+  }
+  if (tab === 'forum') {
+    const fi = document.getElementById('forum-iframe');
+    if (!fi.src || fi.src === window.location.href) fi.src = 'forum.html';
+  }
+  if (tab === 'chat') {
+    const iframe = document.getElementById('chat-iframe');
+    if (!iframe.src || iframe.src === window.location.href) {
+      iframe.src = 'chatbot.html';
+    }
+  }
+}
+
+// ── GPS ──
+let currentLat = null, currentLng = null;
+
+function getGPS() {
+  const dot   = document.getElementById('gps-dot');
+  const label = document.getElementById('gps-label');
+  const coords = document.getElementById('gps-coords');
+  dot.className   = 'gps-dot searching';
+  label.textContent = 'Locating your position…';
+  coords.textContent = 'Waiting for GPS';
+
+  if (!navigator.geolocation) {
+    dot.className = 'gps-dot error';
+    label.textContent = 'GPS not supported';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      currentLat = pos.coords.latitude.toFixed(6);
+      currentLng = pos.coords.longitude.toFixed(6);
+      dot.className     = 'gps-dot found';
+      label.textContent = 'Location found ✓';
+      coords.textContent = `${currentLat}°N, ${currentLng}°E  ±${Math.round(pos.coords.accuracy)}m`;
+      reverseGeocode(currentLat, currentLng);
+    },
+    err => {
+      dot.className = 'gps-dot error';
+      label.textContent = 'GPS error — enter address manually';
+      coords.textContent = err.message;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function reverseGeocode(lat, lng) {
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    .then(r => r.json())
+    .then(data => {
+      const addr = data.display_name || '';
+      document.getElementById('address-input').value = addr;
+    })
+    .catch(() => {});
+}
+
+// ── IMAGE SELECT ──
+let selectedFile = null;
+
+function onImageSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  const img = document.getElementById('preview-img');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  document.getElementById('cam-placeholder').style.display = 'none';
+  document.getElementById('preview-overlay').style.display = 'block';
+  document.getElementById('camera-box').classList.add('has-image');
+}
+
+// ── SUBMIT ──
+async function submitReport() {
+  if (!selectedFile) {
+    showToast('📷 Please select a photo first', 'error');
+    return;
+  }
+  if (!currentLat || !currentLng) {
+    showToast('📍 Waiting for GPS — try Refresh or add address manually', 'error');
+    return;
+  }
+
+  const address = document.getElementById('address-input').value.trim() || 'Unknown Location';
+  const btn     = document.getElementById('submit-btn');
+  const bar     = document.getElementById('progress-bar');
+  const fill    = document.getElementById('progress-fill');
+
+  btn.disabled  = true;
+  btn.innerHTML = '<div class="spinner"></div> Uploading…';
+  bar.classList.add('show');
+
+  // Animate progress bar
+  let prog = 0;
+  const interval = setInterval(() => {
+    prog = Math.min(prog + 8, 85);
+    fill.style.width = prog + '%';
+  }, 200);
+
+  const form = new FormData();
+  form.append('file',    selectedFile);
+  form.append('lat',     currentLat);
+  form.append('lng',     currentLng);
+  form.append('address', address);
+  form.append('time',    new Date().toISOString());
+
+  try {
+    const res = await fetch('http://127.0.0.1:8000/upload', {
+      method: 'POST',
+      body: form
+    });
+
+    clearInterval(interval);
+    fill.style.width = '100%';
+
+    if (!res.ok) throw new Error('Server error');
+
+    const data = await res.json();
+    const count = data.pothole_count || 0;
+
+    showToast(`✅ Report submitted! ${count} pothole${count !== 1 ? 's' : ''} detected`, 'success');
+
+    // Reset form
+    setTimeout(() => {
+      selectedFile = null;
+      document.getElementById('preview-img').style.display = 'none';
+      document.getElementById('preview-img').src = '';
+      document.getElementById('cam-placeholder').style.display = 'flex';
+      document.getElementById('preview-overlay').style.display = 'none';
+      document.getElementById('camera-box').classList.remove('has-image');
+      document.getElementById('file-input').value = '';
+      fill.style.width = '0%';
+      bar.classList.remove('show');
+    }, 1200);
+
+  } catch (err) {
+    clearInterval(interval);
+    fill.style.width = '0%';
+    bar.classList.remove('show');
+    showToast('❌ Upload failed — check backend connection', 'error');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = '📤 Submit Report';
+  }
+}
+
+// ── HISTORY ──
+async function loadHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="no-reports"><div class="no-reports-icon">⏳</div>Loading…</div>';
+
+  try {
+    const res  = await fetch('http://127.0.0.1:8000/potholes');
+    const data = await res.json();
+
+    if (!data.length) {
+      list.innerHTML = '<div class="no-reports"><div class="no-reports-icon">📋</div>No reports yet</div>';
+      return;
+    }
+
+    list.innerHTML = data.reverse().map(p => {
+      let sev = 'low';
+      if (p.potholes?.length) {
+        const area = p.potholes[0].area_m2 || 0;
+        if (area > 1) sev = 'high';
+        else if (area > 0.3) sev = 'medium';
+      }
+      const date   = new Date(p.timestamp || Date.now()).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+      const addr   = p.address || 'Unknown Location';
+      const lat    = p.latitude  ? parseFloat(p.latitude).toFixed(4)  : '—';
+      const lng    = p.longitude ? parseFloat(p.longitude).toFixed(4) : '—';
+      const count  = p.pothole_count || 0;
+      const status = p.status || 'open';
+
+      // Repair approval section — shown only when pending_review
+      let repairSection = '';
+      if (status === 'pending_review' && p.repair_img) {
+        repairSection = `
+          <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+            <div style="font-size:11px;font-weight:600;color:var(--info);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">🔧 Repair Submitted — Your Review Needed</div>
+            <img src="${p.repair_img}" style="width:100%;border-radius:8px;max-height:160px;object-fit:cover;margin-bottom:10px"/>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Rate the repair (1–5 stars):</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px" id="stars-${p._id}">
+              ${[1,2,3,4,5].map(s => `<button onclick="selectStar('${p._id}',${s})" id="star-${p._id}-${s}"
+                style="font-size:22px;background:none;border:none;cursor:pointer;opacity:0.3;transition:opacity 0.15s"
+                >⭐</button>`).join('')}
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="approveRepair('${p._id}')" style="flex:1;padding:9px;border-radius:9px;border:1px solid var(--ok);background:rgba(34,197,94,0.12);color:var(--ok);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">✓ Approve</button>
+              <button onclick="rejectRepair('${p._id}')" style="flex:1;padding:9px;border-radius:9px;border:1px solid var(--danger);background:rgba(239,68,68,0.12);color:var(--danger);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">✕ Reject</button>
+            </div>
+          </div>`;
+      }
+
+      // Show rating if resolved
+      const ratingSection = status === 'resolved' && p.user_rating
+        ? `<div style="margin-top:6px;font-size:11px;color:var(--ok)">⭐ You rated this repair: ${'⭐'.repeat(p.user_rating)}</div>`
+        : '';
+
+      const statusColor = { open:'var(--danger)', review:'var(--warning)', pending_review:'var(--info)', resolved:'var(--ok)' }[status] || 'var(--muted)';
+      const statusLabel = { open:'Open', review:'Under Review', pending_review:'Repair Submitted', resolved:'Resolved' }[status] || status;
+
+      return `
+        <div class="report-card ${sev}" id="rcard-${p._id}">
+          <div class="rc-top">
+            <span class="rc-date">📅 ${date}</span>
+            <span class="sev-badge ${sev}">${sev}</span>
+          </div>
+          <div class="rc-address">📍 ${addr.length > 60 ? addr.slice(0,60)+'…' : addr}</div>
+          <div class="rc-coords">${lat}°N, ${lng}°E &nbsp;·&nbsp; ${count} pothole${count !== 1 ? 's' : ''} detected</div>
+          <div style="margin-top:5px;font-size:11px;font-weight:600;color:${statusColor}">● ${statusLabel}</div>
+          ${ratingSection}
+          ${repairSection}
+        </div>`;
+    }).join('');
+
+  } catch (err) {
+    list.innerHTML = '<div class="no-reports"><div class="no-reports-icon">❌</div>Could not load reports</div>';
+  }
+}
+
+// ── STAR RATING ──
+const selectedRatings = {};
+function selectStar(potholeId, star) {
+  selectedRatings[potholeId] = star;
+  for (let s = 1; s <= 5; s++) {
+    const btn = document.getElementById(`star-${potholeId}-${s}`);
+    if (btn) btn.style.opacity = s <= star ? '1' : '0.3';
+  }
+}
+
+// ── APPROVE REPAIR ──
+async function approveRepair(potholeId) {
+  const rating = selectedRatings[potholeId] || 0;
+  if (!rating) { showToast('⭐ Please rate the repair first', 'error'); return; }
+  try {
+    const res = await fetch('http://127.0.0.1:8000/repair/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pothole_id: potholeId, rating, username })
+    });
+    if (!res.ok) throw new Error();
+    showToast(`✅ Repair approved! Rated ${rating} star${rating > 1 ? 's' : ''}`, 'success');
+    await loadHistory();
+  } catch {
+    showToast('❌ Could not approve — try again', 'error');
+  }
+}
+
+// ── REJECT REPAIR ──
+async function rejectRepair(potholeId) {
+  const reason = prompt('Reason for rejection (optional):') || 'Not satisfactory';
+  try {
+    const res = await fetch('http://127.0.0.1:8000/repair/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pothole_id: potholeId, reason })
+    });
+    if (!res.ok) throw new Error();
+    showToast('🔄 Repair rejected — contractor will redo', 'info');
+    await loadHistory();
+  } catch {
+    showToast('❌ Could not reject — try again', 'error');
+  }
+}
+
+// ── TOAST ──
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── INIT ──
+getGPS();
+</script>
+</body>
+</html>
