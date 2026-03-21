@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Margakshat · Discussion Forum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"/>
+  <style>
+    :root {
+      --bg:      #0f1117;
+      --surface: #181c27;
+      --card:    #1e2333;
+      --border:  rgba(255,255,255,0.08);
+      --accent:  #f97316;
+      --info:    #0ea5e9;
+      --ok:      #22c55e;
+      --danger:  #ef4444;
+      --warning: #f59e0b;
+      --purple:  #a855f7;
+      --text:    #f1f5f9;
+      --muted:   #64748b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* HEADER */
+    .forum-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .forum-icon   { width: 36px; height: 36px; background: linear-gradient(135deg, var(--purple), var(--info)); border-radius: 9px; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+    .forum-title  { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; }
+    .forum-sub    { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+    .header-user  { margin-left: auto; font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); }
+
+    /* TABS */
+    .forum-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .forum-tab  { flex: 1; padding: 11px; text-align: center; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .forum-tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+    .forum-tab:hover  { color: var(--text); }
+
+    /* PAGES */
+    .fpage { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+    .fpage.active { display: flex; }
+    .fpage::-webkit-scrollbar { width: 4px; }
+    .fpage::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── DISCUSSIONS PAGE ── */
+    .disc-page { padding: 16px; gap: 14px; }
+
+    /* New post button */
+    .new-post-btn { padding: 11px 18px; background: var(--purple); color: #fff; border: none; border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; transition: opacity 0.15s; display: flex; align-items: center; gap: 8px; align-self: flex-start; }
+    .new-post-btn:hover { opacity: 0.88; }
+    .new-post-btn.hidden { display: none; }
+
+    /* New post form */
+    .new-post-form { background: var(--card); border: 1px solid rgba(168,85,247,0.3); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .new-post-form.hidden { display: none; }
+    .form-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--purple); }
+    .form-input { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 13px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; width: 100%; transition: border-color 0.2s; }
+    .form-input:focus { border-color: var(--purple); }
+    .form-input::placeholder { color: var(--muted); }
+    textarea.form-input { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-cancel { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .btn-cancel:hover { border-color: var(--danger); color: var(--danger); }
+    .btn-submit { padding: 8px 18px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; transition: opacity 0.15s; }
+    .btn-submit:hover { opacity: 0.88; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Post card */
+    .post-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color 0.15s; }
+    .post-card:hover { border-color: rgba(255,255,255,0.14); }
+    .post-card.pinned { border-color: rgba(168,85,247,0.35); }
+    .post-top { padding: 14px 16px 10px; display: flex; align-items: flex-start; gap: 10px; }
+    .post-avatar { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,var(--accent),#f43f5e); display: grid; place-items: center; font-size: 15px; flex-shrink: 0; font-weight: 700; color: #fff; font-family: 'Syne', sans-serif; }
+    .post-meta { flex: 1; min-width: 0; }
+    .post-author { font-size: 12px; font-weight: 600; color: var(--text); }
+    .post-time   { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .post-badges { display: flex; gap: 6px; margin-top: 4px; }
+    .pin-badge  { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(168,85,247,0.15); color: var(--purple); text-transform: uppercase; }
+    .post-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; padding: 0 16px 6px; line-height: 1.4; }
+    .post-body  { font-size: 13px; color: rgba(241,245,249,0.8); padding: 0 16px 12px; line-height: 1.6; }
+
+    /* Post actions */
+    .post-actions { display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.01); flex-wrap: wrap; }
+    .action-btn { display: flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .action-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    .action-btn.upvoted { border-color: var(--warning); color: var(--warning); background: rgba(245,158,11,0.08); }
+    .action-btn.admin-pin  { border-color: var(--purple); color: var(--purple); }
+    .action-btn.admin-del  { border-color: var(--danger);  color: var(--danger); }
+    .action-btn.admin-del:hover { background: rgba(239,68,68,0.1); }
+
+    /* Comments */
+    .comments-section { padding: 0 16px 14px; display: none; flex-direction: column; gap: 8px; }
+    .comments-section.open { display: flex; }
+    .comment-item { display: flex; gap: 9px; }
+    .comment-avatar { width: 26px; height: 26px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 12px; flex-shrink: 0; }
+    .comment-body  { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+    .comment-author{ font-size: 11px; font-weight: 600; color: var(--text); }
+    .comment-text  { font-size: 12px; color: rgba(241,245,249,0.75); margin-top: 2px; line-height: 1.5; }
+    .comment-time  { font-size: 9px; color: var(--muted); margin-top: 3px; }
+    .comment-input-row { display: flex; gap: 7px; margin-top: 4px; }
+    .comment-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; transition: border-color 0.2s; }
+    .comment-input:focus { border-color: var(--purple); }
+    .comment-input::placeholder { color: var(--muted); }
+    .comment-send { padding: 8px 14px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .comment-send:hover { opacity: 0.88; }
+
+    /* ── REPORTS FEED PAGE ── */
+    .feed-page { padding: 16px; gap: 12px; }
+    .feed-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+    .feed-sub   { font-size: 12px; color: var(--muted); }
+
+    .feed-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; position: relative; overflow: hidden; }
+    .feed-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .feed-card.high::before   { background: var(--danger); }
+    .feed-card.medium::before { background: var(--warning); }
+    .feed-card.low::before    { background: var(--ok); }
+    .feed-card.resolved::before { background: var(--purple); }
+    .feed-top    { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .feed-sev    { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+    .feed-sev.high   { background: rgba(239,68,68,0.15);  color: var(--danger); }
+    .feed-sev.medium { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .feed-sev.low    { background: rgba(34,197,94,0.15);  color: var(--ok); }
+    .feed-sev.resolved { background: rgba(168,85,247,0.15); color: var(--purple); }
+    .feed-date   { font-size: 10px; color: var(--muted); }
+    .feed-addr   { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .feed-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .feed-dot    { width: 6px; height: 6px; border-radius: 50%; }
+
+    /* Empty */
+    .empty-state { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .empty-icon  { font-size: 38px; }
+
+    /* Spinner */
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; font-size: 12px; font-weight: 500; z-index: 999; transition: transform 0.3s; white-space: nowrap; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+    .toast.show    { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--ok);    color: var(--ok); }
+    .toast.error   { border-color: var(--danger); color: var(--danger); }
+    .toast.info    { border-color: var(--purple); color: var(--purple); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="forum-header">
+  <div class="forum-icon">💬</div>
+  <div>
+    <div class="forum-title">Discussion Forum</div>
+    <div class="forum-sub">Community · Reports · Updates</div>
+  </div>
+  <div class="header-user" id="header-user">👤 —</div>
+</div>
+
+<!-- TABS -->
+<div class="forum-tabs">
+  <div class="forum-tab active" id="ftab-discuss" onclick="switchFTab('discuss')">💬 Discussions</div>
+  <div class="forum-tab"        id="ftab-feed"    onclick="switchFTab('feed')">📰 Reports Feed</div>
+</div>
+
+<!-- ══ DISCUSSIONS ══ -->
+<div class="fpage disc-page active" id="fpage-discuss">
+
+  <!-- New post button (users only) -->
+  <button class="new-post-btn hidden" id="new-post-btn" onclick="toggleForm()">
+    ✏️ Start Discussion
+  </button>
+
+  <!-- New post form -->
+  <div class="new-post-form hidden" id="new-post-form">
+    <div class="form-title">✏️ New Discussion</div>
+    <input  class="form-input" id="post-title" placeholder="Title — what's the issue?" maxlength="100"/>
+    <textarea class="form-input" id="post-body" placeholder="Describe the issue, location, or question…" rows="3"></textarea>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="toggleForm()">Cancel</button>
+      <button class="btn-submit" id="post-submit-btn" onclick="submitPost()">Post</button>
+    </div>
+  </div>
+
+  <!-- Posts list -->
+  <div id="posts-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div>Loading discussions…</div>
+  </div>
+
+</div>
+
+<!-- ══ REPORTS FEED ══ -->
+<div class="fpage feed-page" id="fpage-feed">
+  <div>
+    <div class="feed-title">📰 Live Reports Feed</div>
+    <div class="feed-sub">Real-time pothole reports from the database</div>
+  </div>
+  <div id="feed-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div>Loading feed…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SESSION ──
+const session  = JSON.parse(localStorage.getItem('mg_user') || 'null');
+const username = session?.username || 'Guest';
+const role     = session?.role     || 'guest';
+document.getElementById('header-user').textContent = `${role === 'admin' ? '🛡️' : role === 'contractor' ? '🔧' : '👤'} ${username}`;
+
+// Show "New Post" button only for users
+if (role === 'user') {
+  document.getElementById('new-post-btn').classList.remove('hidden');
+}
+
+// ── TABS ──
+function switchFTab(tab) {
+  document.querySelectorAll('.fpage').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.forum-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('fpage-'  + tab).classList.add('active');
+  document.getElementById('ftab-'   + tab).classList.add('active');
+  if (tab === 'feed') loadFeed();
+}
+
+// ── NEW POST FORM ──
+function toggleForm() {
+  const btn  = document.getElementById('new-post-btn');
+  const form = document.getElementById('new-post-form');
+  const hidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !hidden);
+  btn.classList.toggle('hidden', hidden);
+}
+
+async function submitPost() {
+  const title = document.getElementById('post-title').value.trim();
+  const body  = document.getElementById('post-body').value.trim();
+  if (!title) { showToast('⚠️ Please enter a title', 'error'); return; }
+  if (!body)  { showToast('⚠️ Please enter a description', 'error'); return; }
+
+  const btn = document.getElementById('post-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const res = await fetch('http://127.0.0.1:8000/forum/post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, title, body })
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById('post-title').value = '';
+    document.getElementById('post-body').value  = '';
+    toggleForm();
+    showToast('✅ Post submitted!', 'success');
+    await loadPosts();
+  } catch {
+    showToast('❌ Could not submit post', 'error');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = 'Post';
+  }
+}
+
+// ── LOAD POSTS ──
+async function loadPosts() {
+  try {
+    const res   = await fetch('http://127.0.0.1:8000/forum/posts');
+    const posts = await res.json();
+    renderPosts(posts);
+  } catch {
+    document.getElementById('posts-list').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">❌</div>Could not load posts</div>';
+  }
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60)   return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400)return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function renderPosts(posts) {
+  const list = document.getElementById('posts-list');
+  if (!posts.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div>No discussions yet — start one!</div>';
+    return;
+  }
+
+  // Pinned first
+  const sorted = [...posts].sort((a,b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  list.innerHTML = sorted.map(p => {
+    const initial    = (p.username || 'U')[0].toUpperCase();
+    const hasUpvoted = (p.upvoted_by || []).includes(username);
+    const commCount  = (p.comments || []).length;
+    const isAdmin    = role === 'admin';
+
+    const adminBtns = isAdmin ? `
+      <button class="action-btn admin-pin" onclick="pinPost('${p._id}', ${!p.pinned})">
+        ${p.pinned ? '📌 Unpin' : '📌 Pin'}
+      </button>
+      <button class="action-btn admin-del" onclick="deletePost('${p._id}')">🗑 Delete</button>` : '';
+
+    const commentHTML = (p.comments || []).map(c => `
+      <div class="comment-item">
+        <div class="comment-avatar">👤</div>
+        <div class="comment-body">
+          <div class="comment-author">${c.username}</div>
+          <div class="comment-text">${c.comment}</div>
+          <div class="comment-time">${timeAgo(c.timestamp)}</div>
+        </div>
+      </div>`).join('');
+
+    return `
+    <div class="post-card ${p.pinned ? 'pinned' : ''}" id="post-${p._id}">
+      <div class="post-top">
+        <div class="post-avatar">${initial}</div>
+        <div class="post-meta">
+          <div class="post-author">@${p.username}</div>
+          <div class="post-time">${timeAgo(p.timestamp)}</div>
+          ${p.pinned ? '<div class="post-badges"><span class="pin-badge">📌 Pinned</span></div>' : ''}
+        </div>
+      </div>
+      <div class="post-title">${p.title}</div>
+      <div class="post-body">${p.body}</div>
+      <div class="post-actions">
+        <button class="action-btn ${hasUpvoted ? 'upvoted' : ''}" onclick="upvotePost('${p._id}', this)">
+          ▲ <span class="upvote-count">${p.upvotes || 0}</span>
+        </button>
+        <button class="action-btn" onclick="toggleComments('${p._id}')">
+          💬 ${commCount} Comment${commCount !== 1 ? 's' : ''}
+        </button>
+        ${adminBtns}
+      </div>
+      <div class="comments-section" id="comments-${p._id}">
+        ${commentHTML}
+        <div class="comment-input-row">
+          <input class="comment-input" id="cinput-${p._id}" placeholder="Write a comment…" onkeydown="if(event.key==='Enter') submitComment('${p._id}')"/>
+          <button class="comment-send" onclick="submitComment('${p._id}')">Send</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TOGGLE COMMENTS ──
+function toggleComments(postId) {
+  const sec = document.getElementById('comments-' + postId);
+  sec.classList.toggle('open');
+  if (sec.classList.contains('open')) {
+    document.getElementById('cinput-' + postId)?.focus();
+  }
+}
+
+// ── UPVOTE ──
+async function upvotePost(postId, btn) {
+  try {
+    const res  = await fetch('http://127.0.0.1:8000/forum/upvote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: postId, username })
+    });
+    const data = await res.json();
+    const removed = data.message === 'Upvote removed';
+    btn.classList.toggle('upvoted', !removed);
+    const countEl = btn.querySelector('.upvote-count');
+    if (countEl) countEl.textContent = parseInt(countEl.textContent) + (removed ? -1 : 1);
+  } catch {
+    showToast('❌ Could not upvote', 'error');
+  }
+}
+
+// ── COMMENT ──
+async function submitComment(postId) {
+  const input   = document.getElementById('cinput-' + postId);
+  const comment = input?.value.trim();
+  if (!comment) return;
+  input.value = '';
+  try {
+    await fetch('http://127.0.0.1:8000/forum/comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: postId, username, comment })
+    });
+    showToast('💬 Comment added', 'info');
+    await loadPosts();
+    // Re-open comments
+    setTimeout(() => {
+      const sec = document.getElementById('comments-' + postId);
+      if (sec) sec.classList.add('open');
+    }, 100);
+  } catch {
+    showToast('❌ Could not add comment', 'error');
+  }
+}
+
+// ── ADMIN: PIN ──
+async function pinPost(postId, pin) {
+  try {
+    await fetch('http://127.0.0.1:8000/forum/pin', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: postId, pinned: pin })
+    });
+    showToast(pin ? '📌 Post pinned' : '📌 Post unpinned', 'info');
+    await loadPosts();
+  } catch {
+    showToast('❌ Could not update pin', 'error');
+  }
+}
+
+// ── ADMIN: DELETE ──
+async function deletePost(postId) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  try {
+    await fetch(`http://127.0.0.1:8000/forum/post/${postId}`, { method: 'DELETE' });
+    showToast('🗑 Post deleted', 'info');
+    document.getElementById('post-' + postId)?.remove();
+  } catch {
+    showToast('❌ Could not delete', 'error');
+  }
+}
+
+// ── REPORTS FEED ──
+async function loadFeed() {
+  try {
+    const res  = await fetch('http://127.0.0.1:8000/potholes');
+    const data = await res.json();
+    renderFeed(data.reverse());
+  } catch {
+    document.getElementById('feed-list').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">❌</div>Could not load feed</div>';
+  }
+}
+
+function renderFeed(data) {
+  const list = document.getElementById('feed-list');
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>No reports yet</div>';
+    return;
+  }
+  list.innerHTML = data.map(p => {
+    let sev = 'low';
+    if (p.potholes?.length) {
+      const area = p.potholes[0].area_m2 || 0;
+      sev = area > 1 ? 'high' : area > 0.3 ? 'medium' : 'low';
+    }
+    const status  = p.status || 'open';
+    const addr    = (p.address || 'Unknown Location').slice(0, 65);
+    const date    = new Date(p.timestamp || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const count   = p.pothole_count || 0;
+    const dotColor = { open:'var(--danger)', review:'var(--warning)', resolved:'var(--ok)' }[status] || 'var(--muted)';
+    const cardClass = status === 'resolved' ? 'resolved' : sev;
+
+    return `
+    <div class="feed-card ${cardClass}">
+      <div class="feed-top">
+        <span class="feed-sev ${cardClass}">${status === 'resolved' ? 'resolved' : sev}</span>
+        <span class="feed-date">📅 ${date}</span>
+      </div>
+      <div class="feed-addr">📍 ${addr}</div>
+      <div class="feed-status">
+        <div class="feed-dot" style="background:${dotColor}"></div>
+        ${status.charAt(0).toUpperCase()+status.slice(1)}
+        &nbsp;·&nbsp; ${count} pothole${count!==1?'s':''}
+        ${p.assigned_to ? `&nbsp;·&nbsp; 🔧 ${p.assigned_to}` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TOAST ──
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──
+loadPosts();
+setInterval(loadPosts, 15000);
+</script>
+</body>
+</html>

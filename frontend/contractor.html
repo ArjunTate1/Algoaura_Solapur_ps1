@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Margakshat · Contractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"/>
+  <style>
+    :root {
+      --bg:      #0f1117;
+      --surface: #181c27;
+      --card:    #1e2333;
+      --border:  rgba(255,255,255,0.08);
+      --accent:  #f97316;
+      --ok:      #22c55e;
+      --danger:  #ef4444;
+      --warning: #f59e0b;
+      --info:    #0ea5e9;
+      --purple:  #a855f7;
+      --text:    #f1f5f9;
+      --muted:   #64748b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* HEADER */
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+    .brand-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; }
+    .brand-sub  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .contractor-chip { font-size: 12px; background: rgba(14,165,233,0.12); color: var(--info); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(14,165,233,0.25); font-weight: 500; }
+    .logout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; transition: color 0.15s; }
+    .logout-btn:hover { color: var(--danger); }
+
+    /* NAV */
+    .nav-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .nav-tab { flex: 1; padding: 13px; text-align: center; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .nav-tab .tab-icon { font-size: 18px; }
+    .nav-tab.active { color: var(--info); border-bottom-color: var(--info); }
+    .nav-tab:hover  { color: var(--text); }
+
+    /* PAGES */
+    .page { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+    .page.active { display: flex; }
+
+    /* ── TASKS PAGE ── */
+    .tasks-page { padding: 20px 16px; gap: 16px; }
+
+    /* Summary bar */
+    .summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .sum-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+    .sum-val   { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; line-height: 1; }
+    .sum-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+    .sum-card.pending  .sum-val { color: var(--warning); }
+    .sum-card.resolved .sum-val { color: var(--ok); }
+    .sum-card.total    .sum-val { color: var(--info); }
+
+    /* Filter tabs */
+    .filter-row { display: flex; gap: 8px; }
+    .filter-btn { padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+    .filter-btn.active { border-color: var(--info); color: var(--info); background: rgba(14,165,233,0.08); }
+    .filter-btn:hover  { border-color: var(--info); color: var(--info); }
+
+    /* Task card */
+    .task-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .task-card:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.14); }
+    .task-card.resolved { opacity: 0.55; }
+
+    .task-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
+    .task-badges { display: flex; gap: 6px; align-items: center; }
+    .sev-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+    .sev-badge.high   { background: rgba(239,68,68,0.15);  color: var(--danger); }
+    .sev-badge.medium { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .sev-badge.low    { background: rgba(34,197,94,0.15);  color: var(--ok); }
+    .status-pill { font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+    .status-pill.review   { background: rgba(245,158,11,0.12); color: var(--warning); }
+    .status-pill.resolved { background: rgba(168,85,247,0.12); color: var(--purple); }
+    .status-pill.open     { background: rgba(239,68,68,0.12);  color: var(--danger); }
+    .task-date { font-size: 10px; color: var(--muted); }
+
+    .task-body { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .task-address { font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .task-coords  { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .task-meta    { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .task-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* Action row */
+    .task-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.01); }
+    .action-btn { flex: 1; padding: 9px; border-radius: 9px; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-navigate { background: rgba(14,165,233,0.12); color: var(--info); border: 1px solid rgba(14,165,233,0.25); }
+    .btn-navigate:hover { background: var(--info); color: #fff; }
+    .btn-resolve  { background: rgba(34,197,94,0.12);  color: var(--ok);   border: 1px solid rgba(34,197,94,0.25); }
+    .btn-resolve:hover  { background: var(--ok);  color: #fff; }
+    .btn-resolve:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-resolved-done { background: rgba(168,85,247,0.1); color: var(--purple); border: 1px solid rgba(168,85,247,0.2); cursor: default; }
+
+    /* Empty / loading */
+    .empty-state { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .empty-icon  { font-size: 40px; }
+
+    /* ── MAP PAGE ── */
+    .map-page { padding: 0; }
+    .map-iframe { width: 100%; flex: 1; border: none; min-height: calc(100vh - 120px); }
+
+    /* ── DONE PAGE ── */
+    .done-page { padding: 20px 16px; gap: 12px; }
+    .done-header { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 13px; font-weight: 500; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .toast.show    { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--ok);    color: var(--ok); }
+    .toast.error   { border-color: var(--danger); color: var(--danger); }
+    .toast.info    { border-color: var(--info);   color: var(--info); }
+
+    /* Spinner */
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Confirm overlay */
+    .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; display: none; }
+    .confirm-overlay.show { display: flex; }
+    .confirm-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; max-width: 340px; width: 100%; text-align: center; }
+    .confirm-icon  { font-size: 36px; margin-bottom: 12px; }
+    .confirm-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 8px; }
+    .confirm-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+    .confirm-btns  { display: flex; gap: 10px; }
+    .confirm-yes { flex: 1; padding: 11px; border-radius: 10px; border: none; background: var(--ok); color: #fff; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity 0.15s; }
+    .confirm-yes:hover { opacity: 0.88; }
+    .confirm-no  { flex: 1; padding: 11px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+    .confirm-no:hover { border-color: var(--danger); color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-mark">🛣️</div>
+  <div>
+    <div class="brand-name">Margakshat</div>
+    <div class="brand-sub">Field Operations</div>
+  </div>
+  <div class="header-right">
+    <div class="contractor-chip">🔧 <span id="username-display">Contractor</span></div>
+    <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="tab-tasks" onclick="switchTab('tasks')">
+    <span class="tab-icon">📋</span>My Tasks
+  </div>
+  <div class="nav-tab" id="tab-done" onclick="switchTab('done')">
+    <span class="tab-icon">✅</span>Completed
+  </div>
+  <div class="nav-tab" id="tab-map" onclick="switchTab('map')">
+    <span class="tab-icon">🗺️</span>Map
+  </div>
+  <div class="nav-tab" id="tab-analytics" onclick="switchTab('analytics')"><span class="tab-icon">📊</span>Analytics</div>
+  <div class="nav-tab" id="tab-forum" onclick="switchTab('forum')"><span class="tab-icon">💬</span>Forum</div>
+  <div class="nav-tab" id="tab-chat" onclick="switchTab('chat')">
+    <span class="tab-icon">🤖</span>Assistant
+  </div>
+</div>
+
+<!-- ══ TASKS PAGE ══ -->
+<div class="page tasks-page active" id="page-tasks">
+
+  <!-- Summary -->
+  <div class="summary-bar">
+    <div class="sum-card total">
+      <div class="sum-val" id="sum-total">—</div>
+      <div class="sum-label">Total</div>
+    </div>
+    <div class="sum-card pending">
+      <div class="sum-val" id="sum-pending">—</div>
+      <div class="sum-label">Pending</div>
+    </div>
+    <div class="sum-card resolved">
+      <div class="sum-val" id="sum-resolved">—</div>
+      <div class="sum-label">Resolved</div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-row">
+    <button class="filter-btn active" id="tf-all"     onclick="setTaskFilter('all')">All</button>
+    <button class="filter-btn"        id="tf-pending"  onclick="setTaskFilter('pending')">Pending</button>
+    <button class="filter-btn"        id="tf-high"     onclick="setTaskFilter('high')">🔴 High</button>
+  </div>
+
+  <!-- Task list -->
+  <div id="task-list">
+    <div class="empty-state">
+      <div class="empty-icon">⏳</div>
+      Loading your tasks…
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ DONE PAGE ══ -->
+<div class="page done-page" id="page-done">
+  <div class="done-header">Completed Tasks</div>
+  <div id="done-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div>Loading…</div>
+  </div>
+</div>
+
+<!-- ══ MAP PAGE ══ -->
+<div class="page map-page" id="page-map">
+  <iframe class="map-iframe" id="map-iframe" src="" title="Pothole Map"></iframe>
+</div>
+
+<!-- ══ ANALYTICS PAGE ══ -->
+<div class="page map-page" id="page-analytics">
+  <iframe class="map-iframe" id="analytics-iframe" src="" title="Analytics"></iframe>
+</div>
+
+<!-- ══ FORUM PAGE ══ -->
+<div class="page map-page" id="page-forum">
+  <iframe class="map-iframe" id="forum-iframe" src="" title="Forum"></iframe>
+</div>
+
+<!-- ══ CHAT PAGE ══ -->
+<div class="page map-page" id="page-chat">
+  <iframe class="map-iframe" id="chat-iframe" src="" title="AI Assistant"></iframe>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">✅</div>
+    <div class="confirm-title">Mark as Resolved?</div>
+    <div class="confirm-sub" id="confirm-sub">This will update the status to resolved and notify the admin.</div>
+    <div class="confirm-btns">
+      <button class="confirm-no"  onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-yes" id="confirm-yes-btn" onclick="confirmResolve()">Yes, Resolved</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── AUTH ──
+const session = JSON.parse(localStorage.getItem('mg_user') || 'null');
+if (!session || session.role !== 'contractor') window.location.href = 'login.html';
+const myUsername = session?.username || '';
+document.getElementById('username-display').textContent = myUsername;
+function logout() { localStorage.removeItem('mg_user'); window.location.href = 'login.html'; }
+
+// ── TABS ──
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('tab-'  + tab).classList.add('active');
+  if (tab === 'done') renderDone();
+  if (tab === 'map') {
+    const iframe = document.getElementById('map-iframe');
+    if (!iframe.src || iframe.src === window.location.href) iframe.src = 'maps.html';
+  }
+  if (tab === 'analytics') {
+    const ai = document.getElementById('analytics-iframe');
+    if (!ai.src || ai.src === window.location.href) ai.src = 'analytics.html';
+  }
+  if (tab === 'forum') {
+    const fi = document.getElementById('forum-iframe');
+    if (!fi.src || fi.src === window.location.href) fi.src = 'forum.html';
+  }
+  if (tab === 'chat') {
+    const iframe = document.getElementById('chat-iframe');
+    if (!iframe.src || iframe.src === window.location.href) iframe.src = 'chatbot.html';
+  }
+}
+
+// ── DATA ──
+let allTasks = [];
+let taskFilter = 'all';
+let pendingResolveId = null;
+
+function getSeverity(p) {
+  if (!p.potholes?.length) return 'low';
+  const area = p.potholes[0].area_m2 || 0;
+  return area > 1 ? 'high' : area > 0.3 ? 'medium' : 'low';
+}
+
+async function loadTasks() {
+  try {
+    const res  = await fetch(`http://127.0.0.1:8000/my-tasks?contractor=${encodeURIComponent(myUsername)}`);
+    allTasks   = await res.json();
+    updateSummary();
+    applyTaskFilter();
+  } catch {
+    document.getElementById('task-list').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">❌</div>Could not load tasks — check backend</div>';
+  }
+}
+
+function updateSummary() {
+  const total    = allTasks.length;
+  const resolved = allTasks.filter(t => t.status === 'resolved').length;
+  const pending  = total - resolved;
+  document.getElementById('sum-total').textContent    = total;
+  document.getElementById('sum-pending').textContent  = pending;
+  document.getElementById('sum-resolved').textContent = resolved;
+}
+
+// ── FILTER ──
+function setTaskFilter(f) {
+  taskFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tf-' + f)?.classList.add('active');
+  applyTaskFilter();
+}
+
+function applyTaskFilter() {
+  let filtered = allTasks.filter(t => t.status !== 'resolved'); // tasks tab = pending only
+  if (taskFilter === 'high')    filtered = filtered.filter(t => getSeverity(t) === 'high');
+  if (taskFilter === 'pending') filtered = filtered.filter(t => t.status !== 'resolved');
+  renderTasks(filtered);
+}
+
+// ── RENDER TASKS ──
+function renderTasks(data) {
+  const list = document.getElementById('task-list');
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div><div>No pending tasks!<br><span style="font-size:11px">All caught up.</span></div></div>';
+    return;
+  }
+
+  list.innerHTML = data.map(t => {
+    const sev      = getSeverity(t);
+    const status   = t.status || 'review';
+    const addr     = t.address || 'Unknown Location';
+    const lat      = t.latitude  ? parseFloat(t.latitude).toFixed(5)  : null;
+    const lng      = t.longitude ? parseFloat(t.longitude).toFixed(5) : null;
+    const date     = new Date(t.timestamp || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const count    = t.pothole_count || 0;
+    const mapsLink = lat && lng ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : null;
+
+    return `
+    <div class="task-card ${status === 'resolved' ? 'resolved' : ''}" id="card-${t._id}">
+      <div class="task-top">
+        <div class="task-badges">
+          <span class="sev-badge ${sev}">${sev}</span>
+          <span class="status-pill ${status}">${status}</span>
+        </div>
+        <span class="task-date">📅 ${date}</span>
+      </div>
+      <div class="task-body">
+        <div class="task-address">📍 ${addr.length > 70 ? addr.slice(0,70)+'…' : addr}</div>
+        ${lat && lng ? `<div class="task-coords">${lat}°N, ${lng}°E</div>` : ''}
+        <div class="task-meta">
+          <span>🕳️ ${count} pothole${count !== 1 ? 's' : ''}</span>
+          ${t.potholes?.length ? `<span>📐 Area: ${(t.potholes[0].area_m2 || 0).toFixed(3)} m²</span>` : ''}
+        </div>
+      </div>
+      <div class="task-actions">
+        ${mapsLink
+          ? `<button class="action-btn btn-navigate" onclick="openNav('${mapsLink}')">🧭 Navigate</button>`
+          : `<button class="action-btn btn-navigate" disabled style="opacity:0.3;cursor:not-allowed">🧭 No GPS</button>`
+        }
+        ${status === 'resolved'
+          ? `<button class="action-btn btn-resolved-done" disabled>✅ Resolved</button>`
+          : `<button class="action-btn btn-resolve" id="resolve-${t._id}" onclick="askResolve('${t._id}', '${addr.replace(/'/g,"\\'")}')">✓ Mark Resolved</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER DONE ──
+function renderDone() {
+  const done = allTasks.filter(t => t.status === 'resolved');
+  const list = document.getElementById('done-list');
+  if (!done.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>No completed tasks yet</div>';
+    return;
+  }
+  list.innerHTML = done.map(t => {
+    const sev  = getSeverity(t);
+    const addr = t.address || 'Unknown Location';
+    const date = new Date(t.timestamp || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `
+    <div class="task-card resolved">
+      <div class="task-top">
+        <div class="task-badges">
+          <span class="sev-badge ${sev}">${sev}</span>
+          <span class="status-pill resolved">resolved</span>
+        </div>
+        <span class="task-date">📅 ${date}</span>
+      </div>
+      <div class="task-body">
+        <div class="task-address">📍 ${addr.length > 70 ? addr.slice(0,70)+'…' : addr}</div>
+        <div class="task-meta"><span>🕳️ ${t.pothole_count || 0} pothole(s)</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── NAVIGATE ──
+function openNav(url) {
+  window.open(url, '_blank');
+}
+
+// ── RESOLVE ──
+function askResolve(id, addr) {
+  pendingResolveId = id;
+  document.getElementById('confirm-sub').textContent = `"${addr.slice(0, 60)}" will be marked as resolved.`;
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+  pendingResolveId = null;
+}
+
+async function confirmResolve() {
+  if (!pendingResolveId) return;
+  const btn = document.getElementById('confirm-yes-btn');
+  btn.innerHTML = '<div class="spinner"></div>';
+  btn.disabled  = true;
+
+  try {
+    const res = await fetch('http://127.0.0.1:8000/resolve', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pothole_id: pendingResolveId })
+    });
+    if (!res.ok) throw new Error();
+
+    closeConfirm();
+    showToast('✅ Marked as resolved!', 'success');
+    await loadTasks();
+
+  } catch {
+    showToast('❌ Could not update — try again', 'error');
+  } finally {
+    btn.innerHTML = 'Yes, Resolved';
+    btn.disabled  = false;
+  }
+}
+
+// ── TOAST ──
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──
+loadTasks();
+setInterval(loadTasks, 20000);
+</script>
+</body>
+</html>

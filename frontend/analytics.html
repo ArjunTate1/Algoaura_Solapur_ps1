@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Margakshat · Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #0f1117;
+      --surface: #181c27;
+      --card:    #1e2333;
+      --border:  rgba(255,255,255,0.08);
+      --accent:  #f97316;
+      --info:    #0ea5e9;
+      --ok:      #22c55e;
+      --danger:  #ef4444;
+      --warning: #f59e0b;
+      --purple:  #a855f7;
+      --text:    #f1f5f9;
+      --muted:   #64748b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+
+    .analytics-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .ana-icon  { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 9px; display: grid; place-items: center; font-size: 18px; }
+    .ana-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; }
+    .ana-sub   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+    .user-chip { margin-left: auto; font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); }
+    .refresh-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .role-section { display: flex; flex-direction: column; gap: 14px; }
+    .role-header { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .role-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .role-badge.admin      { background: rgba(249,115,22,0.15); color: var(--accent); border: 1px solid rgba(249,115,22,0.3); }
+    .role-badge.user       { background: rgba(14,165,233,0.15); color: var(--info);   border: 1px solid rgba(14,165,233,0.3); }
+    .role-badge.contractor { background: rgba(168,85,247,0.15); color: var(--purple); border: 1px solid rgba(168,85,247,0.3); }
+    .role-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+    .role-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .chart-card.wide { grid-column: 1 / -1; }
+    .chart-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text); }
+    .chart-sub   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: -6px; }
+    .chart-wrap  { position: relative; height: 200px; }
+    .chart-wrap.tall { height: 260px; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+    .mini-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+    .mini-val   { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; line-height: 1; }
+    .mini-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+
+    .hotspot-list { display: flex; flex-direction: column; gap: 6px; }
+    .hotspot-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 8px; }
+    .hs-rank  { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); width: 20px; flex-shrink: 0; }
+    .hs-addr  { flex: 1; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hs-count { font-size: 11px; font-weight: 600; color: var(--danger); font-family: 'DM Mono', monospace; }
+
+    .empty-state { padding: 32px; text-align: center; color: var(--muted); font-size: 12px; }
+    .empty-icon  { font-size: 32px; margin-bottom: 8px; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 480px) { .charts-grid { grid-template-columns: 1fr; } .chart-card.wide { grid-column: 1; } }
+  </style>
+</head>
+<body>
+
+<div class="analytics-header">
+  <div class="ana-icon">📊</div>
+  <div>
+    <div class="ana-title">Analytics</div>
+    <div class="ana-sub">Live from database</div>
+  </div>
+  <div class="user-chip" id="user-chip">—</div>
+  <button class="refresh-btn" onclick="init()">↺ Refresh</button>
+</div>
+
+<div class="content" id="content">
+  <div class="empty-state"><div class="empty-icon">⏳</div>Loading analytics…</div>
+</div>
+
+<script>
+const session  = JSON.parse(localStorage.getItem('mg_user') || 'null');
+const username = session?.username || 'Guest';
+const role     = session?.role     || 'guest';
+
+document.getElementById('user-chip').textContent =
+  (role === 'admin' ? '🛡️' : role === 'contractor' ? '🔧' : '👤') + ' ' + username;
+
+const COLORS = {
+  high:     '#ef4444',
+  medium:   '#f59e0b',
+  low:      '#22c55e',
+  open:     '#ef4444',
+  review:   '#f59e0b',
+  resolved: '#22c55e',
+  accent:   '#f97316',
+  info:     '#0ea5e9',
+  purple:   '#a855f7',
+};
+
+const chartDefaults = {
+  plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'DM Sans', size: 11 }, boxWidth: 12, padding: 12 } } },
+  scales: {
+    x: { ticks: { color: '#64748b', font: { family: 'DM Sans', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: '#64748b', font: { family: 'DM Sans', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+  }
+};
+
+function getSeverity(p) {
+  if (!p.potholes?.length) return 'low';
+  const a = p.potholes[0].area_m2 || 0;
+  return a > 1 ? 'high' : a > 0.3 ? 'medium' : 'low';
+}
+
+function groupByDate(data) {
+  const map = {};
+  data.forEach(p => {
+    const d = new Date(p.timestamp || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    map[d] = (map[d] || 0) + 1;
+  });
+  return map;
+}
+
+let charts = [];
+function destroyCharts() { charts.forEach(c => c.destroy()); charts = []; }
+
+function makeChart(id, config) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  const c = new Chart(ctx, config);
+  charts.push(c);
+  return c;
+}
+
+async function init() {
+  destroyCharts();
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div>Loading…</div>';
+
+  try {
+    const res  = await fetch('http://127.0.0.1:8000/potholes');
+    const all  = await res.json();
+    content.innerHTML = '';
+    if (role === 'admin')      buildAdmin(all, content);
+    if (role === 'user')       buildUser(all.filter(p => p.reported_by === username || true), content);
+    if (role === 'contractor') buildContractor(all.filter(p => p.assigned_to === username), content);
+  } catch {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div>Could not load data — is backend running?</div>';
+  }
+}
+
+// ══════════════════════════════════
+//  ADMIN CHARTS
+// ══════════════════════════════════
+function buildAdmin(data, el) {
+  const high     = data.filter(p => getSeverity(p) === 'high').length;
+  const medium   = data.filter(p => getSeverity(p) === 'medium').length;
+  const low      = data.filter(p => getSeverity(p) === 'low').length;
+  const open     = data.filter(p => p.status !== 'resolved').length;
+  const resolved = data.filter(p => p.status === 'resolved').length;
+  const total    = data.length;
+
+  // Contractor performance
+  const contrMap = {};
+  data.forEach(p => {
+    if (p.assigned_to) {
+      if (!contrMap[p.assigned_to]) contrMap[p.assigned_to] = { total: 0, resolved: 0 };
+      contrMap[p.assigned_to].total++;
+      if (p.status === 'resolved') contrMap[p.assigned_to].resolved++;
+    }
+  });
+
+  // Top hotspots by report_count
+  const hotspots = [...data]
+    .filter(p => p.latitude && p.longitude)
+    .sort((a, b) => (b.report_count || 1) - (a.report_count || 1))
+    .slice(0, 5);
+
+  // Reports over time
+  const byDate = groupByDate(data);
+  const dateLabels = Object.keys(byDate).slice(-14);
+  const dateCounts = dateLabels.map(d => byDate[d]);
+
+  el.innerHTML = `
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge admin">Admin</span>
+      <div><div class="role-title">System Overview</div><div class="role-sub">All reports · Live data</div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="mini-stat"><div class="mini-val" style="color:var(--info)">${total}</div><div class="mini-label">Total</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--danger)">${high}</div><div class="mini-label">High</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--warning)">${medium}</div><div class="mini-label">Medium</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--ok)">${low}</div><div class="mini-label">Low</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--ok)">${resolved}</div><div class="mini-label">Resolved</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Severity breakdown</div>
+        <div class="chart-sub">High / medium / low</div>
+        <div class="chart-wrap"><canvas id="admin-sev-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Report status</div>
+        <div class="chart-sub">Open vs resolved</div>
+        <div class="chart-wrap"><canvas id="admin-status-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title">Reports over time</div>
+        <div class="chart-sub">Last 14 days</div>
+        <div class="chart-wrap tall"><canvas id="admin-timeline"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Contractor performance</div>
+        <div class="chart-sub">Tasks resolved per person</div>
+        <div class="chart-wrap tall" id="admin-contractor-wrap">
+          ${Object.keys(contrMap).length === 0
+            ? '<div class="empty-state"><div class="empty-icon">👷</div>No assignments yet</div>'
+            : '<canvas id="admin-contractor"></canvas>'}
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Top hotspot locations</div>
+        <div class="chart-sub">Most reported areas</div>
+        <div class="hotspot-list" id="hotspot-list"></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Severity donut
+  makeChart('admin-sev-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['High', 'Medium', 'Low'],
+      datasets: [{ data: [high, medium, low], backgroundColor: [COLORS.high, COLORS.medium, COLORS.low], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  // Status donut
+  makeChart('admin-status-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['Open', 'Resolved'],
+      datasets: [{ data: [open, resolved], backgroundColor: [COLORS.open, COLORS.resolved], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  // Timeline line chart
+  makeChart('admin-timeline', {
+    type: 'line',
+    data: {
+      labels: dateLabels,
+      datasets: [{
+        label: 'Reports',
+        data: dateCounts,
+        borderColor: COLORS.accent,
+        backgroundColor: 'rgba(249,115,22,0.12)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: COLORS.accent,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins, scales: chartDefaults.scales }
+  });
+
+  // Contractor bar
+  if (Object.keys(contrMap).length > 0) {
+    const cNames    = Object.keys(contrMap);
+    const cResolved = cNames.map(n => contrMap[n].resolved);
+    const cPending  = cNames.map(n => contrMap[n].total - contrMap[n].resolved);
+    makeChart('admin-contractor', {
+      type: 'bar',
+      data: {
+        labels: cNames,
+        datasets: [
+          { label: 'Resolved', data: cResolved, backgroundColor: COLORS.ok,      borderRadius: 4 },
+          { label: 'Pending',  data: cPending,  backgroundColor: COLORS.warning,  borderRadius: 4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins, scales: { ...chartDefaults.scales, x: { ...chartDefaults.scales.x, stacked: false } } }
+    });
+  }
+
+  // Hotspots list
+  const hsList = document.getElementById('hotspot-list');
+  if (hsList) {
+    hsList.innerHTML = hotspots.length
+      ? hotspots.map((p, i) => `
+        <div class="hotspot-item">
+          <div class="hs-rank">#${i+1}</div>
+          <div class="hs-addr">📍 ${(p.address || 'Unknown').slice(0, 45)}</div>
+          <div class="hs-count">${p.report_count || 1}x</div>
+        </div>`).join('')
+      : '<div class="empty-state"><div class="empty-icon">📭</div>No data</div>';
+  }
+}
+
+// ══════════════════════════════════
+//  USER CHARTS
+// ══════════════════════════════════
+function buildUser(data, el) {
+  const total    = data.length;
+  const high     = data.filter(p => getSeverity(p) === 'high').length;
+  const medium   = data.filter(p => getSeverity(p) === 'medium').length;
+  const low      = data.filter(p => getSeverity(p) === 'low').length;
+  const resolved = data.filter(p => p.status === 'resolved').length;
+  const open     = total - resolved;
+  const byDate   = groupByDate(data);
+  const dateLabels = Object.keys(byDate).slice(-10);
+  const dateCounts = dateLabels.map(d => byDate[d]);
+
+  el.innerHTML = `
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge user">User</span>
+      <div><div class="role-title">My Contributions</div><div class="role-sub">Your reports · ${username}</div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="mini-stat"><div class="mini-val" style="color:var(--info)">${total}</div><div class="mini-label">Reported</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--ok)">${resolved}</div><div class="mini-label">Resolved</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--danger)">${open}</div><div class="mini-label">Pending</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--danger)">${high}</div><div class="mini-label">High</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Severity of my reports</div>
+        <div class="chart-sub">High / medium / low</div>
+        <div class="chart-wrap"><canvas id="user-sev-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Report status</div>
+        <div class="chart-sub">Open vs resolved</div>
+        <div class="chart-wrap"><canvas id="user-status-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title">My reports over time</div>
+        <div class="chart-sub">Activity history</div>
+        <div class="chart-wrap tall"><canvas id="user-timeline"></canvas></div>
+      </div>
+    </div>
+  </div>`;
+
+  makeChart('user-sev-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['High', 'Medium', 'Low'],
+      datasets: [{ data: [high, medium, low], backgroundColor: [COLORS.high, COLORS.medium, COLORS.low], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  makeChart('user-status-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['Open', 'Resolved'],
+      datasets: [{ data: [open, resolved], backgroundColor: [COLORS.open, COLORS.resolved], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  makeChart('user-timeline', {
+    type: 'bar',
+    data: {
+      labels: dateLabels,
+      datasets: [{
+        label: 'Reports submitted',
+        data: dateCounts,
+        backgroundColor: 'rgba(14,165,233,0.7)',
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins, scales: chartDefaults.scales }
+  });
+}
+
+// ══════════════════════════════════
+//  CONTRACTOR CHARTS
+// ══════════════════════════════════
+function buildContractor(data, el) {
+  const total    = data.length;
+  const resolved = data.filter(p => p.status === 'resolved').length;
+  const pending  = total - resolved;
+  const high     = data.filter(p => getSeverity(p) === 'high').length;
+  const medium   = data.filter(p => getSeverity(p) === 'medium').length;
+  const low      = data.filter(p => getSeverity(p) === 'low').length;
+
+  // Group resolved by week
+  const weekMap = {};
+  data.filter(p => p.status === 'resolved').forEach(p => {
+    const d   = new Date(p.timestamp || Date.now());
+    const week = `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleDateString('en-IN', { month: 'short' })}`;
+    weekMap[week] = (weekMap[week] || 0) + 1;
+  });
+  const weekLabels = Object.keys(weekMap);
+  const weekCounts = weekLabels.map(w => weekMap[w]);
+
+  el.innerHTML = `
+  <div class="role-section">
+    <div class="role-header">
+      <span class="role-badge contractor">Contractor</span>
+      <div><div class="role-title">My Work Summary</div><div class="role-sub">Assigned tasks · ${username}</div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="mini-stat"><div class="mini-val" style="color:var(--purple)">${total}</div><div class="mini-label">Assigned</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--ok)">${resolved}</div><div class="mini-label">Resolved</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:var(--warning)">${pending}</div><div class="mini-label">Pending</div></div>
+      <div class="mini-stat"><div class="mini-val" style="color:${total ? Math.round(resolved/total*100) >= 70 ? 'var(--ok)' : 'var(--warning)' : 'var(--muted)'}">${total ? Math.round(resolved/total*100) : 0}%</div><div class="mini-label">Rate</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Tasks resolved vs pending</div>
+        <div class="chart-sub">Overall progress</div>
+        <div class="chart-wrap"><canvas id="con-progress-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Severity of my tasks</div>
+        <div class="chart-sub">High / medium / low</div>
+        <div class="chart-wrap"><canvas id="con-sev-donut"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title">Work done over time</div>
+        <div class="chart-sub">Resolved tasks by week</div>
+        <div class="chart-wrap tall">
+          ${weekLabels.length
+            ? '<canvas id="con-weekly"></canvas>'
+            : '<div class="empty-state"><div class="empty-icon">📭</div>No resolved tasks yet</div>'}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  makeChart('con-progress-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['Resolved', 'Pending'],
+      datasets: [{ data: [resolved, pending], backgroundColor: [COLORS.resolved, COLORS.warning], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  makeChart('con-sev-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['High', 'Medium', 'Low'],
+      datasets: [{ data: [high, medium, low], backgroundColor: [COLORS.high, COLORS.medium, COLORS.low], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: chartDefaults.plugins }
+  });
+
+  if (weekLabels.length) {
+    makeChart('con-weekly', {
+      type: 'bar',
+      data: {
+        labels: weekLabels,
+        datasets: [{
+          label: 'Tasks resolved',
+          data: weekCounts,
+          backgroundColor: 'rgba(168,85,247,0.7)',
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: chartDefaults.plugins, scales: chartDefaults.scales }
+    });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
